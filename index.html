@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wireflux | Packet Laboratory</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:wght@400"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div class="wf-shell">
+      <header class="wf-topbar panel">
+        <div class="wf-branding">
+          <h1>Wireflux</h1>
+          <p>Pedagogical Network Capture Lab</p>
+        </div>
+
+        <nav class="wf-layer-tabs" aria-label="Couches OSI">
+          <button type="button" class="is-active" data-layer="application">L7 Application</button>
+          <button type="button" data-layer="presentation">L6 Presentation</button>
+          <button type="button" data-layer="session">L5 Session</button>
+          <button type="button" data-layer="transport">L4 Transport</button>
+          <button type="button" data-layer="network">L3 Network</button>
+        </nav>
+
+        <div class="wf-actions">
+          <label>
+            Interface
+            <select id="interfaceSelect"></select>
+          </label>
+          <label>
+            Modèle IA
+            <select id="modelSelect"></select>
+          </label>
+          <label>
+            Profil
+            <select id="profileSelect">
+              <option value="auto">Auto</option>
+              <option value="beginner">Débutant</option>
+              <option value="expert">Expert</option>
+            </select>
+          </label>
+          <button id="refreshInterfacesBtn" class="ghost" data-tip="Recharge les interfaces disponibles.">
+            Rafraîchir
+          </button>
+          <button id="startBtn" data-tip="Démarre la capture de paquets.">Start Capture</button>
+          <button id="stopBtn" disabled data-tip="Stoppe la capture.">Stop</button>
+        </div>
+      </header>
+
+      <aside class="wf-sidenav panel">
+        <div class="wf-sidenav-head">
+          <h2>OSI Stack</h2>
+          <p>Deep Packet Inspection</p>
+        </div>
+        <nav class="wf-sidenav-list" aria-label="Navigation latérale">
+          <button type="button" class="is-active" data-layer="application">
+            <span class="material-symbols-outlined">apps</span>L7 Application
+          </button>
+          <button type="button" data-layer="presentation">
+            <span class="material-symbols-outlined">brush</span>L6 Presentation
+          </button>
+          <button type="button" data-layer="session">
+            <span class="material-symbols-outlined">sync_alt</span>L5 Session
+          </button>
+          <button type="button" data-layer="transport">
+            <span class="material-symbols-outlined">swap_calls</span>L4 Transport
+          </button>
+          <button type="button" data-layer="network">
+            <span class="material-symbols-outlined">router</span>L3 Network
+          </button>
+          <button type="button" data-layer="datalink">
+            <span class="material-symbols-outlined">lan</span>L2 Data Link
+          </button>
+          <button type="button" data-layer="physical">
+            <span class="material-symbols-outlined">settings_input_component</span>L1 Physical
+          </button>
+        </nav>
+        <div class="wf-sidenav-foot">
+          <button type="button" class="wf-export-btn" id="exportPcapBtn">Export PCAP</button>
+          <div class="wf-mini-links">
+            <button type="button" id="exportCsvBtn">Export CSV</button>
+            <button type="button" id="exportJsonBtn">Export JSON</button>
+          </div>
+          <button type="button" id="docsBtn" class="wf-docs-btn">
+            <span class="material-symbols-outlined">menu_book</span>Docs
+          </button>
+        </div>
+      </aside>
+
+      <main class="wf-main">
+        <section class="wf-hero">
+          <div>
+            <h2>The Packet Laboratory</h2>
+            <p>Analyse en temps réel, pédagogie par couche et détection comportementale.</p>
+          </div>
+          <div class="wf-kpi-row">
+            <article>
+              <span>Capture</span>
+              <strong id="statusText">idle</strong>
+            </article>
+            <article>
+              <span>IA</span>
+              <strong id="aiStatusText">en attente</strong>
+            </article>
+            <article>
+              <span>Niveau</span>
+              <strong id="profileStatusText">auto (débutant)</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel live" id="panelLive">
+          <div class="panel-header">
+            <h3>
+              Flux Live
+              <span class="hint" data-tip="Débit en paquets et octets sur la fenêtre courante.">?</span>
+            </h3>
+            <div class="panel-header-actions">
+              <button
+                type="button"
+                class="ghost panel-toggle"
+                data-panel-toggle
+                data-label-expand="Déplier"
+                data-label-collapse="Réduire"
+                data-tip="Rétracte ou déplie ce panneau."
+                aria-expanded="true"
+              >
+                Réduire
+              </button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="live-toolbar">
+              <div class="live-metrics">
+                <span id="metricPps">0 pkt/s</span>
+                <span id="metricBps">0 B/s</span>
+                <span id="metricTotal">0 paquets</span>
+              </div>
+              <button id="openGraphBtn" class="ghost" data-tip="Ouvre un graphe détaillé.">Ouvrir graphe</button>
+            </div>
+            <div id="trafficChartMini" class="traffic-chart-mini" aria-label="Mini graphe trafic"></div>
+          </div>
+        </section>
+
+        <section class="panel rules" id="panelRules">
+          <div class="panel-header">
+            <h3>
+              Heuristics Engine
+              <span class="hint" data-tip="Active les détections anti-scan, brute-force, beaconing et exfiltration.">?</span>
+            </h3>
+            <div class="panel-header-actions">
+              <button
+                type="button"
+                class="ghost panel-toggle"
+                data-panel-toggle
+                data-label-expand="Déplier"
+                data-label-collapse="Réduire"
+                data-tip="Rétracte ou déplie ce panneau."
+                aria-expanded="true"
+              >
+                Réduire
+              </button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="rules-grid">
+              <label class="rule-toggle"><input id="ruleSynScan" type="checkbox" checked /><span>Scan SYN</span></label>
+              <label class="rule-toggle"><input id="ruleBruteforce" type="checkbox" checked /><span>Brute-force</span></label>
+              <label class="rule-toggle"><input id="ruleBeaconing" type="checkbox" checked /><span>Beaconing</span></label>
+              <label class="rule-toggle"><input id="ruleExfil" type="checkbox" checked /><span>Exfil burst</span></label>
+            </div>
+          </div>
+        </section>
+
+        <section class="layout">
+          <section class="panel packets" id="panelPackets">
+            <div class="panel-header">
+              <h3>
+                Live Packet Stream
+                <span class="hint" data-tip="Tableau des paquets capturés, tri visuel par protocole.">?</span>
+              </h3>
+              <div class="panel-header-actions">
+                <input
+                  type="search"
+                  id="packetFilterInput"
+                  class="packet-filter"
+                  placeholder="Filtrer IP / port / proto"
+                  aria-label="Filtrer les paquets"
+                />
+                <div class="table-pager" aria-label="Pagination capture">
+                  <button id="prevPageBtn" class="ghost" data-tip="Page précédente.">◀</button>
+                  <span id="pageText">Page 1 / 1</span>
+                  <button id="nextPageBtn" class="ghost" data-tip="Page suivante.">▶</button>
+                </div>
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Déplier"
+                  data-label-collapse="Réduire"
+                  data-tip="Rétracte ou déplie ce panneau."
+                  aria-expanded="true"
+                >
+                  Réduire
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Heure</th>
+                      <th>Flux</th>
+                      <th>Proto</th>
+                      <th>Taille</th>
+                    </tr>
+                  </thead>
+                  <tbody id="packetBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel explain" id="panelExplain">
+            <div class="panel-header">
+              <h3>
+                AI Protocol Oracle
+                <span class="hint" data-tip="Explication IA + quiz + décodeur handshake pour le paquet sélectionné.">?</span>
+              </h3>
+              <div class="panel-header-actions">
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Déplier"
+                  data-label-collapse="Réduire"
+                  data-tip="Rétracte ou déplie ce panneau."
+                  aria-expanded="true"
+                >
+                  Réduire
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="explanationView" class="explanation-view">
+                <article class="explain-card empty">
+                  <h4>Prêt à analyser</h4>
+                  <p>Sélectionne un paquet pour voir la décomposition complète du protocole.</p>
+                </article>
+              </div>
+
+              <h4 class="subpanel-title">Protocol Coach</h4>
+              <div id="coachView" class="coach-view"></div>
+
+              <h4 class="subpanel-title">Handshake Decoder</h4>
+              <div id="handshakeView" class="handshake-view"></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="insights-layout">
+          <section class="panel story" id="panelStory">
+            <div class="panel-header">
+              <h3>Mode Story Session</h3>
+              <div class="panel-header-actions">
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Déplier"
+                  data-label-collapse="Réduire"
+                  data-tip="Rétracte ou déplie ce panneau."
+                  aria-expanded="true"
+                >
+                  Réduire
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ol id="storyList" class="story-list"></ol>
+            </div>
+          </section>
+
+          <section class="panel flow-map" id="panelFlowMap">
+            <div class="panel-header">
+              <h3>Flow Map Interactive</h3>
+              <div class="panel-header-actions">
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Déplier"
+                  data-label-collapse="Réduire"
+                  data-tip="Rétracte ou déplie ce panneau."
+                  aria-expanded="true"
+                >
+                  Réduire
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="flowMap" class="flow-map-list"></div>
+            </div>
+          </section>
+
+          <section class="panel alerts" id="panelAlerts">
+            <div class="panel-header">
+              <h3>
+                Alertes Sécurité
+                <span id="alertCountBadge" class="alert-count-badge hidden" aria-label="Nombre d'alertes actives"></span>
+              </h3>
+              <div class="panel-header-actions">
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Déplier"
+                  data-label-collapse="Réduire"
+                  data-tip="Rétracte ou déplie ce panneau."
+                  aria-expanded="true"
+                >
+                  Réduire
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul id="alertList" class="alert-list">
+                <li class="alert-empty">Aucune alerte pour le moment.</li>
+              </ul>
+            </div>
+          </section>
+        </section>
+
+        <section class="panel learning" id="panelLearning">
+          <div class="panel-header">
+            <h3>OSI Learning Hub</h3>
+          </div>
+          <div class="panel-body">
+            <div class="learning-grid">
+              <article>
+                <strong>L7</strong>
+                <h4>Application</h4>
+                <p>HTTP, DNS, SMTP et interactions utilisateur.</p>
+              </article>
+              <article>
+                <strong>L4</strong>
+                <h4>Transport</h4>
+                <p>TCP/UDP, fiabilité, ordre et contrôle de flux.</p>
+              </article>
+              <article>
+                <strong>L3</strong>
+                <h4>Network</h4>
+                <p>Routage IP et sélection de chemins.</p>
+              </article>
+              <article>
+                <strong>L2</strong>
+                <h4>Data Link</h4>
+                <p>Trames, adresses MAC et voisinage local.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="graphModal" class="graph-modal hidden" aria-hidden="true">
+      <div class="graph-modal-card">
+        <div class="graph-modal-header">
+          <h3>Graphe Trafic Détaillé</h3>
+          <button id="closeGraphBtn" class="ghost">Fermer</button>
+        </div>
+        <div id="trafficChartLarge" class="traffic-chart-large" aria-label="Graphe détaillé"></div>
+      </div>
+    </div>
+
+    <div id="hoverTooltip" class="hover-tooltip hidden"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
