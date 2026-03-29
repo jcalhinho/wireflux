@@ -108,8 +108,8 @@ Release binaries are written to `src-tauri/target/release/`:
 curl -fsSL https://ollama.com/install.sh | sh
 
 # Pull a model (any instruction-tuned model works)
-ollama pull mistral
-# or: ollama pull llama3, neural-chat, phi3, etc.
+ollama pull <model>
+# e.g.: ollama pull mistral, llama3, neural-chat, phi3, etc.
 ```
 
 Wireflux auto-detects Ollama on `http://127.0.0.1:11434`. If the process is not running, it will attempt to start it automatically.
@@ -125,7 +125,7 @@ All settings are optional. Set these environment variables before launching:
 export WIREFLUX_OLLAMA_URL=http://127.0.0.1:11434
 
 # Force a specific model (default: auto-detect)
-export WIREFLUX_OLLAMA_MODEL=mistral
+export WIREFLUX_OLLAMA_MODEL=<model>
 
 # Request timeout in seconds (default: 90)
 export WIREFLUX_OLLAMA_TIMEOUT_SECS=90
@@ -204,7 +204,7 @@ User clicks Start
 | `dumpcap: permission denied` | macOS: run ChmodBPF. Linux: `sudo setcap cap_net_raw,cap_net_admin=eip $(which dumpcap)`. Windows: run as Admin |
 | No interfaces listed | Ensure Wireshark / dumpcap is installed and on your PATH |
 | AI timeout | Increase `WIREFLUX_OLLAMA_TIMEOUT_SECS`. Smaller models are faster |
-| No models available | Run `ollama pull mistral` (or any model) |
+| No models available | Run `ollama pull <model>` (e.g. mistral, llama3, phi3) |
 | Ollama not starting | Run `ollama serve` manually and check the port |
 | App crashes on stop | Known issue with some dumpcap versions — restart the app |
 
@@ -223,7 +223,7 @@ Contributions are welcome. Before opening a pull request:
 
 ### License
 
-> License to be determined before first public release.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
@@ -333,8 +333,8 @@ Les binaires de release sont écrits dans `src-tauri/target/release/` :
 curl -fsSL https://ollama.com/install.sh | sh
 
 # Télécharger un modèle (tout modèle instruction-tuned fonctionne)
-ollama pull mistral
-# ou : ollama pull llama3, neural-chat, phi3, etc.
+ollama pull <model>
+# ex. : ollama pull mistral, llama3, neural-chat, phi3, etc.
 ```
 
 Wireflux détecte Ollama automatiquement sur `http://127.0.0.1:11434`. Si le processus n'est pas lancé, il tentera de le démarrer automatiquement.
@@ -397,4 +397,4 @@ Les contributions sont les bienvenues. Avant d'ouvrir une pull request :
 
 ### Licence
 
-> Licence à définir avant la première publication publique.
+MIT — voir [LICENSE](LICENSE).

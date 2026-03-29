@@ -20,6 +20,9 @@ import { resetAlertState } from "./app/alerts.js";
 import { closeGraphModal, openGraphModal, updateCharts, updateMetricsUi } from "./app/charts.js";
 import {
   handleCaptureStatus,
+  handleAiStreamChunk,
+  handleAiStreamDone,
+  handleAiStreamError,
   handlePacketBatch,
   loadInterfaces,
   refreshAiStatus,
@@ -154,6 +157,18 @@ async function init() {
 
   await listen("packet-batch", (event) => {
     handlePacketBatch(event.payload);
+  });
+
+  await listen("ai-stream-chunk", (event) => {
+    handleAiStreamChunk(event.payload);
+  });
+
+  await listen("ai-stream-done", (event) => {
+    handleAiStreamDone(event.payload);
+  });
+
+  await listen("ai-stream-error", (event) => {
+    void handleAiStreamError(event.payload);
   });
 
   await loadInterfaces();

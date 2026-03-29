@@ -281,6 +281,48 @@ tr[data-proto="ARP"] {
   overflow-wrap: anywhere;
 }
 
+.ai-block.ai-rich {
+  background: linear-gradient(180deg, rgba(15, 109, 243, 0.08), rgba(255, 255, 255, 0.96));
+  border-color: #bfd0ea;
+  white-space: normal;
+}
+
+.ai-block.ai-rich p {
+  margin: 0 0 7px;
+  line-height: 1.44;
+}
+
+.ai-block.ai-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-block.ai-rich ul {
+  margin: 0 0 7px;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+
+.ai-block.ai-rich li {
+  line-height: 1.4;
+}
+
+.ai-block.ai-rich.is-streaming {
+  border-style: dashed;
+}
+
+.ai-stream-cursor {
+  color: var(--primary);
+  font-family: "JetBrains Mono", monospace;
+  animation: ai-caret 750ms steps(1) infinite;
+}
+
+@keyframes ai-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
 .coach-view,
 .handshake-view {
   border: 1px solid var(--border);

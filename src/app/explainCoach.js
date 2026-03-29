@@ -260,6 +260,7 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
 
   const loading = Boolean(options.loading);
   const aiError = options.aiError ? String(options.aiError) : "";
+  const streamText = options.streamText ? String(options.streamText) : "";
   const parsedAi = parseAiResponse(aiRawText);
   const resolvedProfile = resolveProfileMode();
   const isExpert = resolvedProfile === "expert";
@@ -308,7 +309,7 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
 
   let aiText = parsedAi.body;
   if (loading) {
-    aiText = "Génération IA en cours...";
+    aiText = streamText || "Génération IA en cours...";
   }
   if (aiError) {
     aiText = `Erreur IA: ${aiError}`;
@@ -318,7 +319,8 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
   }
 
   const diagnostics = parsedAi.diagnostics.length > 0 ? parsedAi.diagnostics.join("\n") : "";
-  const aiSource = parsedAi.source || (loading ? "en cours" : aiError ? "fallback local" : "non précisé");
+  const aiSource = parsedAi.source || (loading ? "streaming" : aiError ? "fallback local" : "non précisé");
+  const aiBodyHtml = renderAiBody(aiText, loading);
 
   explanationView.innerHTML = `
     <article class="explain-card">
@@ -355,9 +357,54 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
           <h4>Interprétation IA</h4>
           <span class="source-badge">Source: ${escapeHtml(aiSource)}</span>
         </div>
-        <pre class="ai-block">${escapeHtml(aiText)}</pre>
+        <div class="ai-block ai-rich ${loading ? "is-streaming" : ""}">${aiBodyHtml}</div>
         ${diagnostics ? `<pre class="ai-block">Diagnostic: ${escapeHtml(diagnostics)}</pre>` : ""}
       </section>
     </article>
   `;
+}
+
+function renderAiBody(text, loading) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    const waiting = loading ? "Analyse en streaming..." : "Aucune donnée IA.";
+    return `<p>${escapeHtml(waiting)}</p>`;
+  }
+
+  const html = [];
+  let inList = false;
+
+  const closeList = () => {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  };
+
+  for (const line of lines) {
+    const isBullet = line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ");
+    if (isBullet) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      const cleaned = line.slice(2).trim();
+      html.push(`<li>${escapeHtml(cleaned)}</li>`);
+      continue;
+    }
+
+    closeList();
+    html.push(`<p>${escapeHtml(line)}</p>`);
+  }
+
+  closeList();
+  if (loading) {
+    html.push('<p class="ai-stream-cursor">▌</p>');
+  }
+
+  return html.join("");
 }

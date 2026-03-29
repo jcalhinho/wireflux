@@ -16,7 +16,7 @@ pub fn build_prompt(packet: &PacketRecord) -> String {
     let flags = packet.tcp_flags.clone().unwrap_or_else(|| "-".to_string());
 
     format!(
-        "Réponds UNIQUEMENT avec l'explication finale en français.\nInterdit: afficher ton raisonnement, \"Thinking Process\", étapes internes, checklist, analyse méta.\nFormat attendu: 3 puces maximum, simples et concrètes.\n\nTimestamp: {}\nSource: {}:{}\nDestination: {}:{}\nL3: {}\nProtocol: {}\nTTL/Hop: {}\nTCP Flags: {}\nEtherType: {}\nLength: {} bytes\nInfo: {}\nHex preview: {}",
+        "Réponds UNIQUEMENT avec l'explication finale en français.\nInterdit: afficher ton raisonnement, \"Thinking Process\", étapes internes, checklist, analyse méta.\nFormat attendu (détaillé):\n- Contexte du paquet\n- Interprétation protocolaire (L3/L4)\n- Lecture sécurité/diagnostic\n- Hypothèses plausibles (2 max)\n- Action concrète de vérification\nUtilise des puces courtes et techniques.\n\nTimestamp: {}\nSource: {}:{}\nDestination: {}:{}\nL3: {}\nProtocol: {}\nTTL/Hop: {}\nTCP Flags: {}\nEtherType: {}\nLength: {} bytes\nInfo: {}\nHex preview: {}",
         packet.timestamp,
         packet.source,
         src_port,
@@ -44,7 +44,7 @@ pub fn build_compact_prompt(packet: &PacketRecord) -> String {
         .unwrap_or_else(|| "-".to_string());
 
     format!(
-        "Réponds en français avec l'explication finale uniquement.\nInterdit: Thinking Process / raisonnement.\nEn 2-3 phrases max.\nSource: {}:{}\nDestination: {}:{}\nL3/Proto: {}/{}\nTaille: {} bytes\nInfo: {}",
+        "Réponds en français avec l'explication finale uniquement.\nInterdit: Thinking Process / raisonnement.\nFormat: 4 puces courtes.\nSource: {}:{}\nDestination: {}:{}\nL3/Proto: {}/{}\nTaille: {} bytes\nInfo: {}",
         packet.source,
         src_port,
         packet.destination,

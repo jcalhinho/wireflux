@@ -14,19 +14,19 @@ use profiles::{preferred_model_from_env, resolve_model, ModelResolution};
 use prompt::{build_compact_prompt, build_prompt, local_explanation};
 use service::{ensure_ollama_online, fetch_installed_models};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct AiStreamChunkEvent {
     request_id: String,
     chunk: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct AiStreamDoneEvent {
     request_id: String,
     text: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct AiStreamErrorEvent {
     request_id: String,
     message: String,
