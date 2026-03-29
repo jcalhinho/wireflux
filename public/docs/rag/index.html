@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wireflux RAG Reference Pack</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3f6fb;
+        --card: #ffffff;
+        --text: #13243c;
+        --muted: #4b5f7b;
+        --border: #d5deeb;
+        --accent: #0a63df;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px 16px 32px;
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(1.45rem, 3vw, 2rem);
+      }
+      h2 {
+        font-size: 1.1rem;
+      }
+      p,
+      li {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 6px;
+      }
+      a {
+        color: var(--accent);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        padding: 8px 0;
+        font-size: 0.92rem;
+      }
+      th {
+        color: #31537d;
+        font-weight: 700;
+      }
+      .chip {
+        display: inline-flex;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(10, 99, 223, 0.26);
+        background: rgba(10, 99, 223, 0.09);
+        color: #1e508f;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .mono {
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        color: #284a77;
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <span class="chip">Wireflux</span>
+        <h1>RAG Reference Pack</h1>
+        <p>
+          Pack de référence prêt à ingérer pour les réponses IA sur l'analyse réseau. Objectif: maximiser la
+          fiabilité, citer les sources, et limiter les hallucinations.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Fichiers inclus</h2>
+        <ul>
+          <li>
+            <a href="./wireflux-reference-corpus.jsonl">wireflux-reference-corpus.jsonl</a>: corpus principal prêt à
+            indexer (généré automatiquement).
+          </li>
+          <li><a href="./sources.json">sources.json</a>: catalogue officiel des sources à indexer.</li>
+          <li><a href="./chunk-schema.json">chunk-schema.json</a>: contrat JSON pour chaque chunk.</li>
+          <li><a href="./chunking-policy.md">chunking-policy.md</a>: règles de découpage/document metadata.</li>
+          <li><a href="./prompt-policy.md">prompt-policy.md</a>: policy anti-hallucination et citation.</li>
+          <li><a href="./example-wireflux-corpus.jsonl">example-wireflux-corpus.jsonl</a>: exemple d'ingestion.</li>
+        </ul>
+        <p>
+          Commande de régénération:
+          <span class="mono">npm run rag:build</span>
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h3>Sources normatives (priorité haute)</h3>
+          <ul>
+            <li><a href="https://www.rfc-editor.org/" target="_blank" rel="noreferrer">RFC Editor</a></li>
+            <li>
+              <a
+                href="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml"
+                target="_blank"
+                rel="noreferrer"
+                >IANA Service Names &amp; Port Numbers</a
+              >
+            </li>
+            <li>
+              <a href="https://www.iana.org/protocols" target="_blank" rel="noreferrer">IANA Protocol Registries</a>
+            </li>
+            <li><a href="https://www.wireshark.org/docs/" target="_blank" rel="noreferrer">Wireshark Docs</a></li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>Sources cyber (priorité haute)</h3>
+          <ul>
+            <li><a href="https://attack.mitre.org/" target="_blank" rel="noreferrer">MITRE ATT&amp;CK</a></li>
+            <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noreferrer">CISA KEV</a></li>
+            <li><a href="https://nvd.nist.gov/" target="_blank" rel="noreferrer">NVD</a></li>
+            <li><a href="https://www.cert.ssi.gouv.fr/" target="_blank" rel="noreferrer">CERT-FR</a></li>
+            <li><a href="https://cyber.gouv.fr/" target="_blank" rel="noreferrer">ANSSI</a></li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Contrat de réponse recommandé</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Règle</th>
+              <th>Application</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Evidence-first</td>
+              <td>Ne répondre qu'avec des éléments présents dans les chunks récupérés.</td>
+            </tr>
+            <tr>
+              <td>Attribution stricte</td>
+              <td>Ajouter <span class="mono">source_id</span> et <span class="mono">doc_id</span> pour chaque point clé.</td>
+            </tr>
+            <tr>
+              <td>Abstention</td>
+              <td>Si preuve insuffisante, dire explicitement ce qui manque au lieu d'inventer.</td>
+            </tr>
+            <tr>
+              <td>Inférence balisée</td>
+              <td>Préfixer toute déduction par "Hypothèse" + niveau de confiance.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

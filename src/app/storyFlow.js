@@ -13,7 +13,7 @@ import {
   detectTlsStage,
   isDnsPacket,
   isLikelyDataPacket,
-  packetMatchesLayer,
+  packetMatchesActiveLayers,
   parseTcpFlags,
   parseTimestampValue,
 } from "./helpers.js";
@@ -266,16 +266,13 @@ export function renderFlowMap() {
 
   const items = Array.from(state.conversations.values())
     .filter((convo) =>
-      packetMatchesLayer(
-        {
-          protocol: convo.protocol,
-          ip_version: convo.ipVersion,
-          source_port: convo.sourcePort,
-          destination_port: convo.destinationPort,
-          info: "",
-        },
-        state.activeLayer,
-      ),
+      packetMatchesActiveLayers({
+        protocol: convo.protocol,
+        ip_version: convo.ipVersion,
+        source_port: convo.sourcePort,
+        destination_port: convo.destinationPort,
+        info: "",
+      }),
     )
     .sort((a, b) => b.packets - a.packets)
     .slice(0, MAX_FLOW_ITEMS);
@@ -346,27 +343,30 @@ export function renderFlowMap() {
 function stageLabel(stage) {
   switch (stage) {
     case "dns":
-      return "DNS";
+      return "DNS (nom -> IP)";
     case "tcp_syn":
-      return "TCP SYN";
+      return "1) SYN";
     case "tcp_syn_ack":
-      return "TCP SYN-ACK";
+      return "2) SYN-ACK";
     case "tcp_ack":
-      return "TCP ACK";
+      return "3) ACK";
     case "tls_client_hello":
-      return "TLS ClientHello";
+      return "4) ClientHello";
     case "tls_server_hello":
-      return "TLS ServerHello";
+      return "5) ServerHello";
     case "tls_record":
-      return "TLS Record";
+      return "TLS chiffré";
     case "data":
-      return "Data";
+      return "Données";
     default:
       return "Événement";
   }
 }
 
 export function renderStoryList() {
+  if (!storyList) {
+    return;
+  }
   storyList.innerHTML = "";
 
   let events = state.storyEvents.filter((event) => {
@@ -374,7 +374,7 @@ export function renderStoryList() {
     if (!packet) {
       return false;
     }
-    return packetMatchesLayer(packet, state.activeLayer);
+    return packetMatchesActiveLayers(packet);
   });
   if (state.selectedConversationKey) {
     const filtered = state.storyEvents.filter((event) => event.conversationKey === state.selectedConversationKey);
@@ -383,7 +383,7 @@ export function renderStoryList() {
       if (!packet) {
         return false;
       }
-      return packetMatchesLayer(packet, state.activeLayer);
+      return packetMatchesActiveLayers(packet);
     });
     if (layerFiltered.length > 0) {
       events = layerFiltered;
@@ -394,6 +394,15 @@ export function renderStoryList() {
     storyList.innerHTML = '<li class="story-empty">La timeline se remplira pendant la capture.</li>';
     return;
   }
+
+  const guide = document.createElement("li");
+  guide.className = "story-guide";
+  guide.innerHTML = `
+    <strong>Comment lire cette timeline</strong>
+    <p>Chaque ligne correspond à une étape observée dans le flux. Clique une ligne pour ouvrir le paquet associé.</p>
+    <p>Ordre typique: SYN -> SYN-ACK -> ACK -> (TLS) -> Données.</p>
+  `;
+  storyList.appendChild(guide);
 
   const recent = events.slice(-40).reverse();
   for (const event of recent) {

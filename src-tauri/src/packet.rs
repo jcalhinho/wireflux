@@ -5,8 +5,10 @@ pub struct PacketRecord {
     pub id: u64,
     pub timestamp: String,
     pub source: String,
+    pub source_mac: String,
     pub source_port: Option<u16>,
     pub destination: String,
+    pub destination_mac: String,
     pub destination_port: Option<u16>,
     pub protocol: String,
     pub ip_version: String,
@@ -21,8 +23,10 @@ pub struct PacketRecord {
 #[derive(Debug)]
 struct ParsedPacketFields {
     source: String,
+    source_mac: String,
     source_port: Option<u16>,
     destination: String,
+    destination_mac: String,
     destination_port: Option<u16>,
     protocol: String,
     ip_version: String,
@@ -36,8 +40,10 @@ impl ParsedPacketFields {
     fn unknown(reason: &str) -> Self {
         Self {
             source: "unknown".to_string(),
+            source_mac: "unknown".to_string(),
             source_port: None,
             destination: "unknown".to_string(),
+            destination_mac: "unknown".to_string(),
             destination_port: None,
             protocol: "OTHER".to_string(),
             ip_version: "L2".to_string(),
@@ -73,8 +79,10 @@ pub fn decode_packet(
         id,
         timestamp,
         source: parsed.source,
+        source_mac: parsed.source_mac,
         source_port: parsed.source_port,
         destination: parsed.destination,
+        destination_mac: parsed.destination_mac,
         destination_port: parsed.destination_port,
         protocol: parsed.protocol,
         ip_version: parsed.ip_version,
@@ -103,14 +111,18 @@ fn parse_network_fields(payload: &[u8]) -> ParsedPacketFields {
 
     let ethertype = u16::from_be_bytes([payload[12], payload[13]]);
     let ethertype_text = format!("0x{ethertype:04X}");
+    let source_mac = format_mac(&payload[6..12]);
+    let destination_mac = format_mac(&payload[0..6]);
 
     match ethertype {
-        0x0800 => parse_ipv4(payload, ethertype_text),
-        0x86DD => parse_ipv6(payload, ethertype_text),
+        0x0800 => parse_ipv4(payload, ethertype_text, source_mac, destination_mac),
+        0x86DD => parse_ipv6(payload, ethertype_text, source_mac, destination_mac),
         0x0806 => ParsedPacketFields {
-            source: format_mac(&payload[6..12]),
+            source: source_mac.clone(),
+            source_mac,
             source_port: None,
-            destination: format_mac(&payload[0..6]),
+            destination: destination_mac.clone(),
+            destination_mac,
             destination_port: None,
             protocol: "ARP".to_string(),
             ip_version: "ARP".to_string(),
@@ -120,9 +132,11 @@ fn parse_network_fields(payload: &[u8]) -> ParsedPacketFields {
             info: "Address Resolution Protocol".to_string(),
         },
         _ => ParsedPacketFields {
-            source: format_mac(&payload[6..12]),
+            source: source_mac.clone(),
+            source_mac,
             source_port: None,
-            destination: format_mac(&payload[0..6]),
+            destination: destination_mac.clone(),
+            destination_mac,
             destination_port: None,
             protocol: format!("ETH_{ethertype:04X}"),
             ip_version: "L2".to_string(),
@@ -134,13 +148,20 @@ fn parse_network_fields(payload: &[u8]) -> ParsedPacketFields {
     }
 }
 
-fn parse_ipv4(payload: &[u8], ethertype: String) -> ParsedPacketFields {
+fn parse_ipv4(
+    payload: &[u8],
+    ethertype: String,
+    source_mac: String,
+    destination_mac: String,
+) -> ParsedPacketFields {
     if payload.len() < 34 {
         return ParsedPacketFields {
             ethertype,
             info: "Truncated IPv4 packet".to_string(),
             ip_version: "IPv4".to_string(),
             protocol: "IPv4".to_string(),
+            source_mac,
+            destination_mac,
             ..ParsedPacketFields::unknown("Truncated IPv4 packet")
         };
     }
@@ -153,6 +174,8 @@ fn parse_ipv4(payload: &[u8], ethertype: String) -> ParsedPacketFields {
             info: "Invalid IPv4 header".to_string(),
             ip_version: "IPv4".to_string(),
             protocol: "IPv4".to_string(),
+            source_mac,
+            destination_mac,
             ..ParsedPacketFields::unknown("Invalid IPv4 header")
         };
     }
@@ -174,8 +197,10 @@ fn parse_ipv4(payload: &[u8], ethertype: String) -> ParsedPacketFields {
 
     ParsedPacketFields {
         source,
+        source_mac,
         source_port: transport.source_port,
         destination,
+        destination_mac,
         destination_port: transport.destination_port,
         protocol: transport.protocol,
         ip_version: "IPv4".to_string(),
@@ -186,13 +211,20 @@ fn parse_ipv4(payload: &[u8], ethertype: String) -> ParsedPacketFields {
     }
 }
 
-fn parse_ipv6(payload: &[u8], ethertype: String) -> ParsedPacketFields {
+fn parse_ipv6(
+    payload: &[u8],
+    ethertype: String,
+    source_mac: String,
+    destination_mac: String,
+) -> ParsedPacketFields {
     if payload.len() < 54 {
         return ParsedPacketFields {
             ethertype,
             info: "Truncated IPv6 packet".to_string(),
             ip_version: "IPv6".to_string(),
             protocol: "IPv6".to_string(),
+            source_mac,
+            destination_mac,
             ..ParsedPacketFields::unknown("Truncated IPv6 packet")
         };
     }
@@ -215,8 +247,10 @@ fn parse_ipv6(payload: &[u8], ethertype: String) -> ParsedPacketFields {
 
     ParsedPacketFields {
         source,
+        source_mac,
         source_port: transport.source_port,
         destination,
+        destination_mac,
         destination_port: transport.destination_port,
         protocol: transport.protocol,
         ip_version: "IPv6".to_string(),

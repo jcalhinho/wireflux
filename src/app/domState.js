@@ -1,9 +1,13 @@
 export const interfaceSelect = document.getElementById("interfaceSelect");
+export const interfaceGuideText = document.getElementById("interfaceGuideText");
+export const interfaceMetaText = document.getElementById("interfaceMetaText");
 export const modelSelect = document.getElementById("modelSelect");
 export const profileSelect = document.getElementById("profileSelect");
 export const refreshInterfacesBtn = document.getElementById("refreshInterfacesBtn");
 export const startBtn = document.getElementById("startBtn");
 export const stopBtn = document.getElementById("stopBtn");
+export const toggleSidenavBtn = document.getElementById("toggleSidenavBtn");
+export const shellRoot = document.querySelector(".wf-shell");
 
 export const statusText = document.getElementById("statusText");
 export const aiStatusText = document.getElementById("aiStatusText");
@@ -33,6 +37,14 @@ export const closeGraphBtn = document.getElementById("closeGraphBtn");
 export const graphModal = document.getElementById("graphModal");
 export const miniChartEl = document.getElementById("trafficChartMini");
 export const largeChartEl = document.getElementById("trafficChartLarge");
+export const aiChatToggleBtn = document.getElementById("aiChatToggleBtn");
+export const aiChatWidget = document.getElementById("aiChatWidget");
+export const aiChatMessages = document.getElementById("aiChatMessages");
+export const aiChatCloseBtn = document.getElementById("aiChatCloseBtn");
+export const aiChatClearBtn = document.getElementById("aiChatClearBtn");
+export const aiChatForm = document.getElementById("aiChatForm");
+export const aiChatInput = document.getElementById("aiChatInput");
+export const aiChatSendBtn = document.getElementById("aiChatSendBtn");
 
 export const ruleSynScan = document.getElementById("ruleSynScan");
 export const ruleBruteforce = document.getElementById("ruleBruteforce");
@@ -43,10 +55,21 @@ export const panelToggleButtons = Array.from(document.querySelectorAll("[data-pa
 export const hoverTooltip = document.getElementById("hoverTooltip");
 export const alertCountBadge = document.getElementById("alertCountBadge");
 export const layerButtons = Array.from(document.querySelectorAll("[data-layer]"));
+export const layerAllButtons = Array.from(document.querySelectorAll("[data-layer-all]"));
 export const exportPcapBtn = document.getElementById("exportPcapBtn");
 export const exportCsvBtn = document.getElementById("exportCsvBtn");
 export const exportJsonBtn = document.getElementById("exportJsonBtn");
 export const docsBtn = document.getElementById("docsBtn");
+
+export const LAYER_KEYS = Object.freeze([
+  "application",
+  "presentation",
+  "session",
+  "transport",
+  "network",
+  "datalink",
+  "physical",
+]);
 
 export const MAX_STORED_PACKETS = 10_000;
 export const MAX_POINTS = 90;
@@ -130,10 +153,13 @@ export const state = {
   selectedPacketId: null,
   selectedConversationKey: null,
   selectedModel: null,
+  interfaceDetails: new Map(),
   currentPage: 1,
   pageSize: 20,
+  isSidenavCollapsed: false,
   isCaptureRunning: false,
   tickTimer: null,
+  droppedPackets: 0,
   currentSecondPackets: 0,
   currentSecondBytes: 0,
   totalPackets: 0,
@@ -156,8 +182,9 @@ export const state = {
   chartsLoadingPromise: null,
   echartsApi: null,
   activeTooltipTarget: null,
+  allLayersActive: true,
+  activeLayers: new Set(),
   profileMode: "auto",
-  activeLayer: "application",
   quizCorrect: 0,
   quizAnswered: 0,
   coach: {

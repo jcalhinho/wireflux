@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   MAX_STORED_PACKETS,
   conversationKeyForPacket,
+  interfaceGuideText,
+  interfaceMetaText,
   interfaceSelect,
   modelSelect,
   setAiStatus,
@@ -12,10 +14,126 @@ import {
 import { aiCacheKey } from "./domState.js";
 import { analyzePacketForAlerts, resetAlertState } from "./alerts.js";
 import { ensureChartsLoaded, resetTrafficState, startGraphTicker, stopGraphTicker } from "./charts.js";
-import { prepareCoach, renderCoach, renderExplanation, renderExplanationEmpty } from "./explainCoach.js";
+import { renderExplanation, renderExplanationEmpty } from "./explainCoach.js";
+import {
+  openFloatingAiChat,
+  resetFloatingAiChat,
+  showAiChatError,
+  showAiChatLoading,
+  showAiChatResult,
+  updateAiChatStream,
+} from "./floatingAiChat.js";
 import { renderHandshakeDecoder } from "./handshakeView.js";
 import { ensureConversation, processStoryEvent, renderFlowMap, renderStoryList } from "./storyFlow.js";
 import { findPacketById, renderPageControls, renderTablePage } from "./tableView.js";
+
+function inferInterfaceKind(name) {
+  const normalized = String(name || "").toLowerCase();
+  if (!normalized) {
+    return "Interface réseau";
+  }
+  if (normalized === "lo" || normalized.startsWith("lo")) {
+    return "Boucle locale (loopback)";
+  }
+  if (
+    normalized.includes("wifi") ||
+    normalized.includes("wlan") ||
+    normalized.includes("airport")
+  ) {
+    return "Interface Wi-Fi";
+  }
+  if (normalized.startsWith("eth") || normalized.startsWith("en")) {
+    return "Interface Ethernet";
+  }
+  if (
+    normalized.includes("vpn") ||
+    normalized.includes("utun") ||
+    normalized.includes("tun") ||
+    normalized.includes("tap")
+  ) {
+    return "Tunnel / VPN";
+  }
+  if (normalized.includes("docker") || normalized.includes("vmnet") || normalized.includes("bridge")) {
+    return "Interface virtuelle / bridge";
+  }
+  return "Interface réseau";
+}
+
+function normalizeInterfaceDetails(payload) {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const item of payload) {
+    if (!item) {
+      continue;
+    }
+
+    if (typeof item === "string") {
+      const name = String(item);
+      normalized.push({
+        name,
+        displayName: name,
+        kind: inferInterfaceKind(name),
+        description: "",
+        osiHint: "Point d'entree couche 1 (materiel), puis couche 2 (trames).",
+        macAddress: "",
+      });
+      continue;
+    }
+
+    const name = String(item.name || "").trim();
+    if (!name) {
+      continue;
+    }
+    const description = String(item.description || "").trim();
+    const kind = String(item.kind || "").trim() || inferInterfaceKind(name);
+    const displayName = String(item.display_name || "").trim() || (description ? `${name} — ${description}` : name);
+    const osiHint =
+      String(item.osi_hint || "").trim() ||
+      `${kind}: point d'entree couche 1 (materiel) puis couche 2 (trame Ethernet/Wi-Fi).`;
+    const macAddress = String(item.mac_address || "").trim();
+
+    normalized.push({
+      name,
+      displayName,
+      kind,
+      description,
+      osiHint,
+      macAddress,
+    });
+  }
+
+  return normalized;
+}
+
+export function updateInterfaceEducation() {
+  if (!interfaceGuideText || !interfaceMetaText || !interfaceSelect) {
+    return;
+  }
+
+  const selected = String(interfaceSelect.value || "").trim();
+  if (!selected) {
+    interfaceGuideText.textContent =
+      "Choisis l'interface materielle a ecouter: c'est le point de depart couche 1, avant toute analyse L2/L3/L4/L7.";
+    interfaceMetaText.textContent = "Aucune interface selectionnee.";
+    return;
+  }
+
+  const details = state.interfaceDetails.get(selected);
+  if (!details) {
+    const inferredKind = inferInterfaceKind(selected);
+    interfaceGuideText.textContent = `${inferredKind}: la capture part de la couche 1 puis remonte la pile protocolaire.`;
+    interfaceMetaText.textContent = `Interface: ${selected} | Type: ${inferredKind}`;
+    return;
+  }
+
+  interfaceGuideText.textContent = details.osiHint;
+  const descriptionText = details.description ? ` | Detail: ${details.description}` : "";
+  const macText = details.macAddress ? ` | MAC: ${details.macAddress}` : "";
+  interfaceMetaText.textContent = `Interface: ${details.name} | Type: ${details.kind}${descriptionText}${macText}`;
+}
 
 function setModelOptions(models, selectedFromStatus, requiresSelection) {
   modelSelect.innerHTML = "";
@@ -91,6 +209,7 @@ export async function refreshAiStatus() {
 
 function resetSessionViews() {
   state.packets = [];
+  state.droppedPackets = 0;
   state.currentPage = 1;
   state.selectedPacketId = null;
   state.selectedConversationKey = null;
@@ -104,16 +223,15 @@ function resetSessionViews() {
 
   renderTablePage();
   renderExplanationEmpty();
-  prepareCoach({ id: 0, protocol: "", tcp_flags: null, destination_port: null, source_port: null });
-  state.coach.quiz = null;
-  renderCoach();
   renderStoryList();
   renderFlowMap();
   renderHandshakeDecoder();
+  resetFloatingAiChat();
 }
 
 function appendPackets(batch) {
   let batchBytes = 0;
+  const previousPacketCount = state.packets.length;
 
   for (const packet of batch) {
     state.packets.push(packet);
@@ -125,14 +243,17 @@ function appendPackets(batch) {
   }
 
   if (state.packets.length > MAX_STORED_PACKETS) {
-    state.packets = state.packets.slice(-MAX_STORED_PACKETS);
+    const overflow = state.packets.length - MAX_STORED_PACKETS;
+    state.packets = state.packets.slice(overflow);
+    state.droppedPackets += overflow;
   }
 
   state.currentSecondPackets += batch.length;
   state.currentSecondBytes += batchBytes;
   state.totalPackets += batch.length;
 
-  if (state.currentPage === 1) {
+  const firstPageCanChange = previousPacketCount < state.pageSize;
+  if (state.currentPage !== 1 || firstPageCanChange) {
     renderTablePage();
   } else {
     renderPageControls();
@@ -144,14 +265,30 @@ function appendPackets(batch) {
 }
 
 export async function loadInterfaces() {
+  const previousSelection = interfaceSelect.value;
   interfaceSelect.innerHTML = "";
+  state.interfaceDetails = new Map();
+
   try {
-    const interfaces = await invoke("list_interfaces");
-    for (const name of interfaces) {
+    let interfaces = [];
+    try {
+      const detailsPayload = await invoke("list_interfaces_details");
+      interfaces = normalizeInterfaceDetails(detailsPayload);
+    } catch {
+      const names = await invoke("list_interfaces");
+      interfaces = normalizeInterfaceDetails(names);
+    }
+
+    for (const details of interfaces) {
       const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
+      option.value = details.name;
+      option.textContent = details.displayName || details.name;
       interfaceSelect.appendChild(option);
+      state.interfaceDetails.set(details.name, details);
+    }
+
+    if (previousSelection && state.interfaceDetails.has(previousSelection)) {
+      interfaceSelect.value = previousSelection;
     }
 
     if (interfaces.length === 0) {
@@ -160,8 +297,11 @@ export async function loadInterfaces() {
       option.textContent = "Aucune interface";
       interfaceSelect.appendChild(option);
     }
+
+    updateInterfaceEducation();
   } catch (error) {
     setStatus("error", `interfaces: ${String(error)}`);
+    updateInterfaceEducation();
   }
 }
 
@@ -175,10 +315,12 @@ export async function selectPacket(packet) {
   renderFlowMap();
   renderStoryList();
   renderHandshakeDecoder();
-  prepareCoach(packet);
+  renderExplanation(packet);
+  openFloatingAiChat();
 
   if (!state.selectedModel) {
     setAiStatus("sélection de modèle requise", true);
+    showAiChatError(packet, "Sélectionne un modèle IA dans le header pour lancer l'analyse.", state.selectedModel);
     renderExplanation(packet, "", {
       aiError: "Sélectionne un modèle IA dans la barre du haut. La lecture locale reste disponible.",
     });
@@ -190,14 +332,18 @@ export async function selectPacket(packet) {
   const cachedError = state.aiErrorCache.get(cacheKey);
 
   if (cachedAi || cachedError) {
-    renderExplanation(packet, cachedAi || "", { aiError: cachedError || "" });
+    if (cachedError) {
+      showAiChatError(packet, cachedError, state.selectedModel);
+    } else {
+      showAiChatResult(packet, cachedAi, state.selectedModel);
+    }
     return;
   }
 
   const requestId = `${packet.id}-${Date.now()}`;
   state.aiStreamRequestId = requestId;
   state.aiStreamBuffer = "";
-  renderExplanation(packet, "", { loading: true, streamText: "" });
+  showAiChatLoading(packet, state.selectedModel);
   setAiStatus(`stream IA en cours (${state.selectedModel})`);
 
   try {
@@ -209,7 +355,7 @@ export async function selectPacket(packet) {
   } catch (error) {
     state.aiErrorCache.set(cacheKey, String(error));
     if (state.selectedPacketId === packet.id) {
-      renderExplanation(packet, "", { aiError: String(error) });
+      showAiChatError(packet, String(error), state.selectedModel);
     }
     setAiStatus("erreur backend IA", true);
     await refreshAiStatus();
@@ -236,7 +382,25 @@ export async function startCapture() {
     startGraphTicker();
     await refreshAiStatus();
   } catch (error) {
-    setStatus("error", String(error));
+    const message = String(error || "");
+    const normalized = message.toLowerCase();
+    if (normalized.includes("déjà en cours") || normalized.includes("deja en cours")) {
+      try {
+        await invoke("stop_capture");
+        await invoke("start_capture", { interface: iface });
+        state.isCaptureRunning = true;
+        setCaptureButtons(true);
+        startGraphTicker();
+        setStatus("running", "Capture resynchronisée");
+        await refreshAiStatus();
+        return;
+      } catch (restartError) {
+        setStatus("error", String(restartError));
+      }
+    } else {
+      setStatus("error", message);
+    }
+
     state.isCaptureRunning = false;
     setCaptureButtons(false);
     stopGraphTicker();
@@ -310,10 +474,7 @@ export function handleAiStreamChunk(payload) {
     return;
   }
 
-  renderExplanation(packet, "", {
-    loading: true,
-    streamText: state.aiStreamBuffer,
-  });
+  updateAiChatStream(packet.id, state.aiStreamBuffer);
 }
 
 export function handleAiStreamDone(payload) {
@@ -345,7 +506,7 @@ export function handleAiStreamDone(payload) {
   state.aiStreamRequestId = null;
   state.aiStreamBuffer = "";
 
-  renderExplanation(packet, aiText);
+  showAiChatResult(packet, aiText, state.selectedModel);
   setAiStatus(`connectée (${state.selectedModel})`);
 }
 
@@ -367,7 +528,7 @@ export async function handleAiStreamError(payload) {
     if (packet) {
       const cacheKey = aiCacheKey(packet.id, state.selectedModel);
       state.aiErrorCache.set(cacheKey, message);
-      renderExplanation(packet, "", { aiError: message });
+      showAiChatError(packet, message, state.selectedModel);
     }
   }
 

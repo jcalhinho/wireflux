@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wireflux.local/schemas/rag-chunk.schema.json",
+  "title": "Wireflux RAG Chunk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chunk_id",
+    "doc_id",
+    "source_id",
+    "source_url",
+    "title",
+    "language",
+    "content",
+    "tags",
+    "retrieved_at",
+    "confidence_level"
+  ],
+  "properties": {
+    "chunk_id": {
+      "type": "string",
+      "description": "Stable chunk identifier (ex: rfc768-0001)."
+    },
+    "doc_id": {
+      "type": "string",
+      "description": "Document identifier at source scope."
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Key from sources.json."
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "title": {
+      "type": "string"
+    },
+    "section": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 8
+    },
+    "content": {
+      "type": "string",
+      "minLength": 20
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "osi_layers": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 7
+      },
+      "uniqueItems": true
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 65535
+      },
+      "uniqueItems": true
+    },
+    "protocols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hash_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Confidence in extraction and mapping quality."
+    },
+    "license": {
+      "type": "string"
+    }
+  }
+}

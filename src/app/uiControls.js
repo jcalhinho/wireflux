@@ -5,22 +5,29 @@ import {
   exportCsvBtn,
   exportJsonBtn,
   hoverTooltip,
+  LAYER_KEYS,
+  layerAllButtons,
   layerButtons,
   panelToggleButtons,
   ruleBeaconing,
   ruleBruteforce,
   ruleExfil,
   ruleSynScan,
+  shellRoot,
   state,
+  toggleSidenavBtn,
 } from "./domState.js";
 import { getFilteredPackets } from "./helpers.js";
 
 let onLivePanelExpanded = () => {};
 let onLayerChange = () => {};
+let onOpenDocs = null;
+const SIDENAV_STATE_KEY = "wireflux:sidenav-collapsed";
 
 export function setUiHooks(hooks) {
   onLivePanelExpanded = hooks?.onLivePanelExpanded || onLivePanelExpanded;
   onLayerChange = hooks?.onLayerChange || onLayerChange;
+  onOpenDocs = hooks?.onOpenDocs || onOpenDocs;
 }
 
 function showTooltip(text, x, y) {
@@ -137,38 +144,128 @@ export function bindPanelToggles() {
   }
 }
 
-function updateLayerButtons(activeLayer) {
+function applySidenavCollapsed(collapsed) {
+  if (!shellRoot) {
+    return;
+  }
+
+  state.isSidenavCollapsed = Boolean(collapsed);
+  shellRoot.classList.toggle("is-sidenav-collapsed", state.isSidenavCollapsed);
+
+  if (!toggleSidenavBtn) {
+    return;
+  }
+
+  toggleSidenavBtn.setAttribute("aria-expanded", String(!state.isSidenavCollapsed));
+
+  const icon = toggleSidenavBtn.querySelector(".material-symbols-outlined");
+  if (icon) {
+    icon.textContent = state.isSidenavCollapsed ? "left_panel_open" : "left_panel_close";
+  }
+
+  const label = toggleSidenavBtn.querySelector(".wf-sidenav-toggle-label");
+  if (label) {
+    label.textContent = state.isSidenavCollapsed ? "Ouvrir menu" : "Réduire menu";
+  }
+}
+
+export function bindSidenavToggle() {
+  if (!shellRoot || !toggleSidenavBtn) {
+    return;
+  }
+
+  let initialCollapsed = false;
+  try {
+    initialCollapsed = window.localStorage.getItem(SIDENAV_STATE_KEY) === "1";
+  } catch (_error) {
+    initialCollapsed = false;
+  }
+  applySidenavCollapsed(initialCollapsed);
+
+  toggleSidenavBtn.addEventListener("click", () => {
+    const nextCollapsed = !state.isSidenavCollapsed;
+    applySidenavCollapsed(nextCollapsed);
+    try {
+      window.localStorage.setItem(SIDENAV_STATE_KEY, nextCollapsed ? "1" : "0");
+    } catch (_error) {
+      // no-op: persistence is optional
+    }
+
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  });
+}
+
+function updateLayerButtons() {
+  const activeSet = state.allLayersActive ? new Set() : new Set(state.activeLayers);
   for (const button of layerButtons) {
     const layer = String(button.dataset.layer || "").toLowerCase();
-    button.classList.toggle("is-active", layer === activeLayer);
+    const isActive = !state.allLayersActive && activeSet.has(layer);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
+
+  for (const button of layerAllButtons) {
+    button.classList.toggle("is-active", state.allLayersActive);
+    button.setAttribute("aria-pressed", String(state.allLayersActive));
   }
 }
 
 export function bindLayerNavigation() {
-  const initial =
-    String(layerButtons.find((button) => button.classList.contains("is-active"))?.dataset.layer || "application")
-      .toLowerCase();
-  state.activeLayer = initial;
-  updateLayerButtons(initial);
+  state.allLayersActive = true;
+  state.activeLayers = new Set();
+  updateLayerButtons();
 
   for (const button of layerButtons) {
     button.addEventListener("click", () => {
       const layer = String(button.dataset.layer || "").toLowerCase();
-      if (!layer || layer === state.activeLayer) {
+      if (!layer || !LAYER_KEYS.includes(layer)) {
         return;
       }
-      state.activeLayer = layer;
-      updateLayerButtons(layer);
-      onLayerChange(layer);
+
+      if (state.allLayersActive) {
+        state.allLayersActive = false;
+        state.activeLayers = new Set([layer]);
+      } else if (state.activeLayers.has(layer)) {
+        state.activeLayers.delete(layer);
+      } else {
+        state.activeLayers.add(layer);
+      }
+
+      if (state.activeLayers.size === 0) {
+        state.allLayersActive = true;
+      }
+
+      state.currentPage = 1;
+      updateLayerButtons();
+      onLayerChange(Array.from(state.activeLayers));
     });
   }
 
-  onLayerChange(initial);
+  for (const button of layerAllButtons) {
+    button.addEventListener("click", () => {
+      state.allLayersActive = true;
+      state.activeLayers = new Set();
+      state.currentPage = 1;
+      updateLayerButtons();
+      onLayerChange([]);
+    });
+  }
+
+  onLayerChange([]);
 
   if (docsBtn) {
     docsBtn.addEventListener("click", () => {
-      const docsUrl = new URL("/docs/index.html", window.location.origin).toString();
-      window.open(docsUrl, "_blank", "noopener,noreferrer");
+      if (typeof onOpenDocs === "function") {
+        void onOpenDocs();
+        return;
+      }
+      const docsUrl = new URL("docs/index.html", window.location.href).toString();
+      const opened = window.open(docsUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        window.location.href = docsUrl;
+      }
     });
   }
 

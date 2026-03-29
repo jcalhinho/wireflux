@@ -7,7 +7,8 @@
     "dev": "vite --port 1420 --strictPort",
     "build": "vite build",
     "preview": "vite preview --port 1420 --strictPort",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "rag:build": "node tools/rag/build_reference_corpus.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

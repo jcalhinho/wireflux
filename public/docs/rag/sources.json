@@ -1,0 +1,148 @@
+{
+  "version": "2026-03-29",
+  "description": "Wireflux trusted source catalog for RAG ingestion",
+  "sources": [
+    {
+      "id": "rfc-editor",
+      "name": "RFC Editor",
+      "tier": "tier-1-normative",
+      "category": "network-protocol-standards",
+      "url": "https://www.rfc-editor.org/",
+      "ingestion": {
+        "seed_urls": ["https://www.rfc-editor.org/rfc/"],
+        "refresh_days": 30,
+        "language": "en"
+      },
+      "notes": "Normative protocol behavior and packet format references."
+    },
+    {
+      "id": "iana-protocol-registry",
+      "name": "IANA Protocol Registries",
+      "tier": "tier-1-normative",
+      "category": "network-identifiers",
+      "url": "https://www.iana.org/protocols",
+      "ingestion": {
+        "seed_urls": ["https://www.iana.org/assignments/"],
+        "refresh_days": 30,
+        "language": "en"
+      },
+      "notes": "Authoritative numbers for protocols and related registries."
+    },
+    {
+      "id": "iana-port-numbers",
+      "name": "IANA Service Names and Port Numbers",
+      "tier": "tier-1-normative",
+      "category": "transport-ports",
+      "url": "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml",
+      "ingestion": {
+        "seed_urls": [
+          "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml"
+        ],
+        "refresh_days": 14,
+        "language": "en"
+      },
+      "notes": "Canonical mapping for well-known and registered ports."
+    },
+    {
+      "id": "wireshark-docs",
+      "name": "Wireshark Documentation",
+      "tier": "tier-1-normative",
+      "category": "packet-analysis-tooling",
+      "url": "https://www.wireshark.org/docs/",
+      "ingestion": {
+        "seed_urls": ["https://www.wireshark.org/docs/dfref/"],
+        "refresh_days": 30,
+        "language": "en"
+      },
+      "notes": "Field names, dissector references, and filter semantics."
+    },
+    {
+      "id": "mitre-attack",
+      "name": "MITRE ATT&CK",
+      "tier": "tier-2-security-knowledge",
+      "category": "threat-techniques",
+      "url": "https://attack.mitre.org/",
+      "ingestion": {
+        "seed_urls": ["https://attack.mitre.org/matrices/enterprise/"],
+        "refresh_days": 14,
+        "language": "en"
+      },
+      "notes": "Technique-level threat context for behavioral interpretation."
+    },
+    {
+      "id": "cisa-kev",
+      "name": "CISA Known Exploited Vulnerabilities Catalog",
+      "tier": "tier-2-security-knowledge",
+      "category": "active-threat-exposure",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "ingestion": {
+        "seed_urls": ["https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+        "refresh_days": 1,
+        "language": "en"
+      },
+      "notes": "Use for exploitation priority and current threat relevance."
+    },
+    {
+      "id": "nvd",
+      "name": "NVD",
+      "tier": "tier-2-security-knowledge",
+      "category": "vulnerability-database",
+      "url": "https://nvd.nist.gov/",
+      "ingestion": {
+        "seed_urls": ["https://nvd.nist.gov/vuln"],
+        "refresh_days": 1,
+        "language": "en"
+      },
+      "notes": "CVE metadata, CVSS vectors, and official vulnerability details."
+    },
+    {
+      "id": "cert-fr",
+      "name": "CERT-FR",
+      "tier": "tier-2-security-knowledge",
+      "category": "incident-advisories",
+      "url": "https://www.cert.ssi.gouv.fr/",
+      "ingestion": {
+        "seed_urls": ["https://www.cert.ssi.gouv.fr/alerte/", "https://www.cert.ssi.gouv.fr/avis/"],
+        "refresh_days": 1,
+        "language": "fr"
+      },
+      "notes": "French advisories and operational incident intelligence."
+    },
+    {
+      "id": "anssi",
+      "name": "ANSSI",
+      "tier": "tier-2-security-knowledge",
+      "category": "security-guides",
+      "url": "https://cyber.gouv.fr/",
+      "ingestion": {
+        "seed_urls": ["https://cyber.gouv.fr/publications"],
+        "refresh_days": 30,
+        "language": "fr"
+      },
+      "notes": "Operational hardening guides and national cyber recommendations."
+    },
+    {
+      "id": "owasp-cheat-sheet",
+      "name": "OWASP Cheat Sheet Series",
+      "tier": "tier-3-supporting",
+      "category": "secure-practices",
+      "url": "https://cheatsheetseries.owasp.org/",
+      "ingestion": {
+        "seed_urls": ["https://cheatsheetseries.owasp.org/"],
+        "refresh_days": 30,
+        "language": "en"
+      },
+      "notes": "Useful as supporting guidance, not as protocol source-of-truth."
+    }
+  ],
+  "source_selection_policy": {
+    "primary_for_protocol_facts": ["rfc-editor", "iana-protocol-registry", "iana-port-numbers", "wireshark-docs"],
+    "primary_for_threat_context": ["mitre-attack", "cisa-kev", "nvd", "cert-fr", "anssi"],
+    "fallback_only": ["owasp-cheat-sheet"],
+    "forbidden_for_ground_truth": [
+      "unverified forum posts",
+      "anonymous social media threads",
+      "AI generated text without cited source"
+    ]
+  }
+}

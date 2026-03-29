@@ -1,8 +1,34 @@
-import { KNOWN_PORTS, state } from "./domState.js";
+import { KNOWN_PORTS, LAYER_KEYS, state } from "./domState.js";
 
 const APPLICATION_PORTS = new Set([
   20, 21, 22, 25, 53, 80, 110, 123, 143, 443, 587, 993, 995, 3306, 5432, 6379, 8080, 8443,
 ]);
+const PRESENTATION_HINT_PORTS = new Set([443, 8443, 993, 995, 636, 587, 465]);
+
+const L2_CONTROL_ETHERTYPES = new Set([
+  "0X0806", // ARP
+  "0X8100", // VLAN
+  "0X88A8",
+  "0X88CC",
+  "0X888E",
+  "0X8809",
+  "0X8847",
+  "0X8848",
+]);
+const L3_ETHERTYPES = new Set(["0X0800", "0X86DD"]);
+const L2_INFO_MARKERS = ["arp", "lldp", "stp", "bpdu", "eapol", "lacp", "vlan", "cdp", "mpls"];
+const L3_PROTOCOLS = new Set(["IPV4", "IPV6", "ICMP", "ICMPV6", "IGMP", "ESP", "AH", "GRE", "OSPF"]);
+const L3_INFO_MARKERS = [
+  "icmp",
+  "igmp",
+  "neighbor solicitation",
+  "neighbor advertisement",
+  "router solicitation",
+  "router advertisement",
+  "ttl exceeded",
+  "fragment",
+  "hop limit",
+];
 
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -72,28 +98,218 @@ export function parseTcpFlags(flagsText) {
   );
 }
 
-const APP_LAYER_PORTS = new Set([
-  20, 21, 22, 23, 25, 53, 67, 68, 80, 110, 123, 143, 443,
-  587, 636, 993, 995, 3306, 3389, 5432, 5900, 6379, 8080, 8443,
-]);
+function layerName(value) {
+  const normalized = String(value || "").toLowerCase().trim();
+  return LAYER_KEYS.includes(normalized) ? normalized : null;
+}
+
+export function activeLayerKeys() {
+  if (state.allLayersActive) {
+    return new Set(LAYER_KEYS);
+  }
+  const normalized = new Set();
+  for (const layer of state.activeLayers || []) {
+    const safe = layerName(layer);
+    if (safe) {
+      normalized.add(safe);
+    }
+  }
+  if (normalized.size === 0) {
+    return new Set(LAYER_KEYS);
+  }
+  return normalized;
+}
 
 export function resolveOsiLayer(packet) {
-  const proto = String(packet.protocol || "").toUpperCase();
+  const layers = resolvePacketLayers(packet);
+  return layers[0] || "l3";
+}
 
-  if (proto === "ARP") return "l2";
-  if (proto === "ICMP" || proto === "ICMPV6") return "l3";
-
-  const dport = packet.destination_port;
-  const sport = packet.source_port;
-  if (
-    (dport != null && APP_LAYER_PORTS.has(dport)) ||
-    (sport != null && APP_LAYER_PORTS.has(sport))
-  ) {
-    return "l7";
+export function resolvePacketLayers(packet) {
+  const proto = protocolFamily(packet);
+  if (isDataLinkPacket(packet) && proto !== "TCP" && proto !== "UDP") {
+    return ["l2"];
   }
 
-  if (proto === "TCP" || proto === "UDP") return "l4";
-  return "l3";
+  if (proto === "TCP" || proto === "UDP") {
+    const heuristics = detectLayerHeuristics(packet);
+    const layers = [];
+    if (isApplicationPacket(packet)) {
+      layers.push("l7");
+    }
+    if (heuristics.presentation.matched) {
+      layers.push("l6");
+    }
+    if (heuristics.session.matched) {
+      layers.push("l5");
+    }
+    if (layers.length > 0) {
+      layers.push("l4");
+      return Array.from(new Set(layers));
+    }
+    return ["l4"];
+  }
+
+  if (isNetworkPacket(packet)) {
+    return ["l3"];
+  }
+
+  return ["l2"];
+}
+
+function confidenceFromScore(score) {
+  if (score >= 5) {
+    return "élevée";
+  }
+  if (score >= 3) {
+    return "moyenne";
+  }
+  if (score >= 1) {
+    return "faible";
+  }
+  return "nulle";
+}
+
+function falsePositiveRiskForEvidence(evidenceKinds) {
+  if (evidenceKinds.size === 0) {
+    return "élevé";
+  }
+  if (evidenceKinds.size === 1 && evidenceKinds.has("port")) {
+    return "élevé";
+  }
+  if (evidenceKinds.has("port") && !evidenceKinds.has("payload")) {
+    return "moyen";
+  }
+  return "faible";
+}
+
+function detectPresentationLayer(packet) {
+  const proto = protocolFamily(packet);
+  const info = String(packet?.info || "").toLowerCase();
+  const raw = String(packet?.raw_hex || "").toLowerCase().replaceAll(" ", "");
+  const srcPort = packet?.source_port;
+  const dstPort = packet?.destination_port;
+  const evidenceKinds = new Set();
+  const reasons = [];
+  let score = 0;
+
+  const hasTlsRecord = /(16030[1-4]|17030[1-4]|14030[1-4])/.test(raw);
+  if (hasTlsRecord) {
+    score += 3;
+    evidenceKinds.add("payload");
+    reasons.push("signature TLS visible dans la charge utile");
+  }
+
+  if (/tls|ssl|certificate|client hello|server hello|alpn|http\/2|http\/3|quic/.test(info)) {
+    score += 2;
+    evidenceKinds.add("metadata");
+    reasons.push("métadonnée protocolaire compatible chiffrement/encodage");
+  }
+
+  if (PRESENTATION_HINT_PORTS.has(srcPort) || PRESENTATION_HINT_PORTS.has(dstPort)) {
+    score += 1;
+    evidenceKinds.add("port");
+    reasons.push("port fréquemment lié à TLS/chiffrement");
+  }
+
+  if (proto === "UDP" && (srcPort === 443 || dstPort === 443) && /quic|http\/3/.test(info)) {
+    score += 2;
+    evidenceKinds.add("metadata");
+    reasons.push("indice QUIC/HTTP3 (chiffrement applicatif)");
+  }
+
+  const matched = score >= 3;
+  const confidence = confidenceFromScore(score);
+  const falsePositiveRisk = falsePositiveRiskForEvidence(evidenceKinds);
+  const falsePositiveNote =
+    falsePositiveRisk === "élevé"
+      ? "Risque élevé: corrélation surtout basée sur le port, sans preuve forte dans le payload."
+      : falsePositiveRisk === "moyen"
+        ? "Risque moyen: plusieurs indices existent, mais absence de signature payload explicite."
+        : "Risque faible: indices multi-sources (payload + métadonnées) cohérents.";
+
+  return {
+    matched,
+    confidence,
+    score,
+    reasons,
+    falsePositiveRisk,
+    falsePositiveNote,
+  };
+}
+
+function detectSessionLayer(packet) {
+  const proto = protocolFamily(packet);
+  const info = String(packet?.info || "").toLowerCase();
+  const srcPort = packet?.source_port;
+  const dstPort = packet?.destination_port;
+  const flags = parseTcpFlags(packet?.tcp_flags);
+  const payloadLen = Number(packet?.length || 0);
+  const evidenceKinds = new Set();
+  const reasons = [];
+  let score = 0;
+
+  if (proto === "TCP") {
+    if (flags.has("SYN") && !flags.has("ACK")) {
+      score += 3;
+      evidenceKinds.add("state");
+      reasons.push("ouverture de session TCP (SYN)");
+    } else if (flags.has("SYN") && flags.has("ACK")) {
+      score += 3;
+      evidenceKinds.add("state");
+      reasons.push("réponse handshake TCP (SYN-ACK)");
+    }
+
+    if (flags.has("FIN") || flags.has("RST")) {
+      score += 3;
+      evidenceKinds.add("state");
+      reasons.push("fermeture/réinitialisation de session TCP");
+    }
+
+    if (flags.has("ACK") && !flags.has("PSH") && payloadLen <= 90) {
+      score += 1;
+      evidenceKinds.add("state");
+      reasons.push("paquet ACK court compatible keep-alive/maintenance de session");
+    }
+  }
+
+  if (/session|handshake|keep-?alive|resume|renegotiation|ticket/.test(info)) {
+    score += 2;
+    evidenceKinds.add("metadata");
+    reasons.push("métadonnée évoquant une gestion d'état de session");
+  }
+
+  if (proto === "UDP" && (srcPort === 443 || dstPort === 443) && /quic/.test(info)) {
+    score += 2;
+    evidenceKinds.add("metadata");
+    reasons.push("QUIC implique une gestion de session au-dessus d'UDP");
+  }
+
+  const matched = score >= 3;
+  const confidence = confidenceFromScore(score);
+  const falsePositiveRisk = falsePositiveRiskForEvidence(evidenceKinds);
+  const falsePositiveNote =
+    falsePositiveRisk === "élevé"
+      ? "Risque élevé: peu d'indices d'état, interprétation fragile."
+      : falsePositiveRisk === "moyen"
+        ? "Risque moyen: indices de session présents mais partiels."
+        : "Risque faible: transitions d'état session clairement observées.";
+
+  return {
+    matched,
+    confidence,
+    score,
+    reasons,
+    falsePositiveRisk,
+    falsePositiveNote,
+  };
+}
+
+export function detectLayerHeuristics(packet) {
+  return {
+    presentation: detectPresentationLayer(packet),
+    session: detectSessionLayer(packet),
+  };
 }
 
 export function isDnsPacket(packet) {
@@ -192,30 +408,84 @@ function isApplicationPacket(packet) {
   );
 }
 
+function isDataLinkPacket(packet) {
+  const proto = protocolFamily(packet);
+  const ip = ipFamily(packet);
+  const info = String(packet?.info || "").toLowerCase();
+  const ethertype = String(packet?.ethertype || "").toUpperCase();
+
+  if (proto === "ARP" || ip === "ARP") {
+    return true;
+  }
+  if (L2_CONTROL_ETHERTYPES.has(ethertype)) {
+    return true;
+  }
+  return L2_INFO_MARKERS.some((marker) => info.includes(marker));
+}
+
+function isNetworkPacket(packet) {
+  const proto = protocolFamily(packet);
+  const ip = ipFamily(packet);
+  const info = String(packet?.info || "").toLowerCase();
+  const ethertype = String(packet?.ethertype || "").toUpperCase();
+  if (proto === "ICMP" || proto === "ICMPV6") {
+    return true;
+  }
+  if (ip === "IPV4" || ip === "IPV6") {
+    return true;
+  }
+  if (L3_ETHERTYPES.has(ethertype)) {
+    return true;
+  }
+  if (L3_PROTOCOLS.has(proto)) {
+    return true;
+  }
+  return L3_INFO_MARKERS.some((marker) => info.includes(marker));
+}
+
 export function packetMatchesLayer(packet, layer) {
   const selectedLayer = String(layer || "application").toLowerCase();
   const proto = protocolFamily(packet);
-  const ip = ipFamily(packet);
-  const isArp = proto === "ARP" || ip === "ARP";
+  const heuristics = detectLayerHeuristics(packet);
 
   switch (selectedLayer) {
     case "application":
       return isApplicationPacket(packet);
     case "presentation":
-      return isApplicationPacket(packet);
+      return heuristics.presentation.matched;
     case "session":
-      return isApplicationPacket(packet);
+      return heuristics.session.matched;
     case "transport":
       return proto === "TCP" || proto === "UDP";
     case "network":
-      return ip === "IPV4" || ip === "IPV6" || proto === "ICMP" || proto === "ICMPV6";
+      return isNetworkPacket(packet);
     case "datalink":
-      return isArp;
+      return isDataLinkPacket(packet);
     case "physical":
-      return isArp;
+      return isDataLinkPacket(packet);
     default:
       return true;
   }
+}
+
+export function packetMatchesActiveLayers(packet) {
+  if (state.allLayersActive) {
+    return true;
+  }
+  const layers = activeLayerKeys();
+  for (const layer of layers) {
+    if (packetMatchesLayer(packet, layer)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function getLayerFilteredPackets() {
+  if (state.allLayersActive) {
+    return state.packets;
+  }
+  return state.packets.filter((packet) => packetMatchesActiveLayers(packet));
 }
 
 export function describeIpLayer(ipVersion) {
@@ -299,7 +569,7 @@ export function parseAiResponse(rawText) {
 export function getFilteredPackets() {
   const q = String(state.packetFilter || "").trim().toLowerCase();
   return state.packets.filter((packet) => {
-    if (!packetMatchesLayer(packet, state.activeLayer)) {
+    if (!packetMatchesActiveLayers(packet)) {
       return false;
     }
     if (!q) {
@@ -308,10 +578,11 @@ export function getFilteredPackets() {
     const flow =
       `${packet.source}:${formatOptional(packet.source_port, "?")} ` +
       `${packet.destination}:${formatOptional(packet.destination_port, "?")}`.toLowerCase();
+    const macs = `${packet.source_mac || ""} ${packet.destination_mac || ""}`.toLowerCase();
     const proto = `${packet.ip_version}/${packet.protocol}`.toLowerCase();
     const size = String(packet.length || "");
     const info = String(packet.info || "").toLowerCase();
-    return flow.includes(q) || proto.includes(q) || size.includes(q) || info.includes(q);
+    return flow.includes(q) || macs.includes(q) || proto.includes(q) || size.includes(q) || info.includes(q);
   });
 }
 
@@ -333,7 +604,7 @@ export function getPagedPackets(page) {
     if (position >= total) {
       break;
     }
-    output.push(filtered[total - 1 - position]);
+    output.push(filtered[position]);
   }
   return output;
 }

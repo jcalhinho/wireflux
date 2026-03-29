@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   closeGraphBtn,
   graphModal,
+  interfaceSelect,
   modelSelect,
   nextPageBtn,
   openGraphBtn,
@@ -31,8 +32,10 @@ import {
   selectPacket,
   startCapture,
   stopCapture,
+  updateInterfaceEducation,
 } from "./app/capture.js";
-import { renderCoach, renderExplanation, renderExplanationEmpty, setExplainHooks } from "./app/explainCoach.js";
+import { renderExplanation, renderExplanationEmpty, setExplainHooks } from "./app/explainCoach.js";
+import { initFloatingAiChat, resetFloatingAiChat } from "./app/floatingAiChat.js";
 import { renderHandshakeDecoder, setHandshakeHooks } from "./app/handshakeView.js";
 import { renderFlowMap, renderStoryList, setStoryFlowHooks } from "./app/storyFlow.js";
 import { findPacketById, renderTablePage, setTableHooks, totalPages } from "./app/tableView.js";
@@ -40,6 +43,7 @@ import {
   bindLayerNavigation,
   bindPanelToggles,
   bindRulesEvents,
+  bindSidenavToggle,
   initTooltipSystem,
   setUiHooks,
   syncRulesFromUi,
@@ -58,27 +62,46 @@ async function init() {
       renderFlowMap();
       renderStoryList();
       renderHandshakeDecoder();
+      updateCharts();
+    },
+    onOpenDocs: async () => {
+      const docsUrl = new URL("docs/index.html", window.location.href).toString();
+      const opened = window.open(docsUrl, "_blank", "noopener,noreferrer");
+      if (opened) {
+        return;
+      }
+
+      if (state.isCaptureRunning) {
+        await stopCapture();
+      }
+      window.location.href = docsUrl;
     },
   });
 
   initTooltipSystem();
   bindRulesEvents();
   bindPanelToggles();
+  bindSidenavToggle();
   bindLayerNavigation();
+  initFloatingAiChat();
   syncRulesFromUi();
 
   renderTablePage();
   renderExplanationEmpty();
-  renderCoach();
   renderStoryList();
   renderFlowMap();
   renderHandshakeDecoder();
+  resetFloatingAiChat();
   resetAlertState();
   updateProfileStatus();
 
   refreshInterfacesBtn.addEventListener("click", async () => {
     await loadInterfaces();
     await refreshAiStatus();
+  });
+
+  interfaceSelect?.addEventListener("change", () => {
+    updateInterfaceEducation();
   });
 
   startBtn.addEventListener("click", () => {

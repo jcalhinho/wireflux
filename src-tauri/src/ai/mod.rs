@@ -1,6 +1,7 @@
 mod client;
 mod profiles;
 mod prompt;
+mod rag;
 mod service;
 
 use crate::packet::PacketRecord;
@@ -11,7 +12,8 @@ use tauri::{AppHandle, Emitter};
 
 pub use profiles::AiHealthStatus;
 use profiles::{preferred_model_from_env, resolve_model, ModelResolution};
-use prompt::{build_compact_prompt, build_prompt, local_explanation};
+use rag::build_rag_context;
+use prompt::{build_chat_prompt, build_compact_prompt, build_prompt, local_explanation};
 use service::{ensure_ollama_online, fetch_installed_models};
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,8 +80,9 @@ pub async fn explain_packet(
         .and_then(|value| value.parse::<u32>().ok())
         .unwrap_or(384);
 
-    let primary_prompt = build_prompt(&packet);
-    let compact_prompt = build_compact_prompt(&packet);
+    let rag_context = build_rag_context(&packet);
+    let primary_prompt = build_prompt(&packet, rag_context.as_ref());
+    let compact_prompt = build_compact_prompt(&packet, rag_context.as_ref());
     let retry_predict = num_predict.max(256);
     let length_retry_predict = num_predict.saturating_mul(3).clamp(384, 1200);
     let mut notes: Vec<String> = Vec::new();
@@ -116,6 +119,7 @@ pub async fn explain_packet(
                             &selected_model,
                             model_note,
                             ollama_note,
+                            rag_context.as_ref(),
                             notes,
                         );
                     }
@@ -156,9 +160,19 @@ pub async fn explain_packet(
                         Err(chat_error) => {
                             notes.push(format!("fallback chat échoué: {chat_error}"));
                             let fallback = local_explanation(&packet);
+                            let rag_note = rag_context
+                                .as_ref()
+                                .map(|context| {
+                                    format!(
+                                        "\n[RAG: {} preuve(s) locale(s), corpus={}]",
+                                        context.evidence_count, context.corpus_label
+                                    )
+                                })
+                                .unwrap_or_default();
                             return Ok(format!(
-                                "{}\n\n[Source IA: fallback local]\n[Diagnostic: {}]",
+                                "{}{}\n\n[Source IA: fallback local]\n[Diagnostic: {}]",
                                 fallback,
+                                rag_note,
                                 notes.join(" | ")
                             ));
                         }
@@ -168,7 +182,100 @@ pub async fn explain_packet(
         }
     };
 
-    finalize_answer(answer_text, &selected_model, model_note, ollama_note, notes)
+    finalize_answer(
+        answer_text,
+        &selected_model,
+        model_note,
+        ollama_note,
+        rag_context.as_ref(),
+        notes,
+    )
+}
+
+pub async fn ask_ai_question(
+    question: String,
+    requested_model: Option<String>,
+    packet: Option<PacketRecord>,
+) -> Result<String, String> {
+    let trimmed_question = question.trim();
+    if trimmed_question.is_empty() {
+        return Err("Question vide: écris une question avant envoi.".to_string());
+    }
+
+    let base_url = std::env::var("WIREFLUX_OLLAMA_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+    let base_url = base_url.trim_end_matches('/').to_string();
+
+    let inference_timeout_secs = std::env::var("WIREFLUX_OLLAMA_TIMEOUT_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(90);
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(inference_timeout_secs))
+        .build()
+        .map_err(|error| format!("Impossible d'initialiser le client HTTP IA: {error}"))?;
+
+    let ollama_note = ensure_ollama_online(&client, &base_url).await?;
+    let models = fetch_installed_models(&client, &base_url).await?;
+    if models.is_empty() {
+        return Err(
+            "Aucun modèle Ollama installé. Installe un modèle via `ollama pull <model>`."
+                .to_string(),
+        );
+    }
+
+    let preferred = preferred_model_from_env();
+    let resolution = resolve_model(requested_model.as_deref(), preferred.as_deref(), &models);
+    let (selected_model, model_note) = match resolution {
+        ModelResolution::Selected { model, note } => (model, note),
+        ModelResolution::NeedSelection { models } => {
+            return Err(format!(
+                "Plusieurs modèles disponibles: {}. Sélectionne un modèle dans l'interface.",
+                models.join(", ")
+            ))
+        }
+    };
+
+    let endpoint = format!("{base_url}/api/chat");
+    let num_predict = std::env::var("WIREFLUX_OLLAMA_NUM_PREDICT")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(520)
+        .max(384);
+
+    let rag_context = packet.as_ref().and_then(build_rag_context);
+    let prompt = build_chat_prompt(trimmed_question, packet.as_ref(), rag_context.as_ref());
+
+    match client::generate_ollama_chat(&client, &endpoint, &selected_model, prompt, num_predict).await
+    {
+        Ok(answer_text) => finalize_answer(
+            answer_text,
+            &selected_model,
+            model_note,
+            ollama_note,
+            rag_context.as_ref(),
+            Vec::new(),
+        ),
+        Err(error) => {
+            let fallback = if let Some(packet) = packet.as_ref() {
+                format!(
+                    "{}\n\nQuestion: {}\nRéponse locale: Ollama indisponible pour cette question.",
+                    local_explanation(packet),
+                    trimmed_question
+                )
+            } else {
+                format!(
+                    "Impossible de répondre via Ollama pour la question: \"{}\".",
+                    trimmed_question
+                )
+            };
+            Ok(format!(
+                "{}\n\n[Source IA: fallback local]\n[Diagnostic: {}]",
+                fallback, error
+            ))
+        }
+    }
 }
 
 pub async fn explain_packet_stream(
@@ -226,7 +333,8 @@ pub async fn explain_packet_stream(
         .unwrap_or(520)
         .max(384);
 
-    let primary_prompt = build_prompt(&packet);
+    let rag_context = build_rag_context(&packet);
+    let primary_prompt = build_prompt(&packet, rag_context.as_ref());
     let app_for_chunks = app.clone();
     let request_for_chunks = request_id.clone();
 
@@ -249,7 +357,14 @@ pub async fn explain_packet_stream(
     .await
     {
         Ok(text) => {
-            let final_text = finalize_answer(text, &selected_model, model_note, ollama_note, Vec::new())?;
+            let final_text = finalize_answer(
+                text,
+                &selected_model,
+                model_note,
+                ollama_note,
+                rag_context.as_ref(),
+                Vec::new(),
+            )?;
             let _ = app.emit(
                 "ai-stream-done",
                 AiStreamDoneEvent {
@@ -371,6 +486,7 @@ fn finalize_answer(
     selected_model: &str,
     model_note: Option<String>,
     ollama_note: Option<String>,
+    rag_context: Option<&rag::RagContext>,
     notes: Vec<String>,
 ) -> Result<String, String> {
     let mut text = format!(
@@ -378,6 +494,12 @@ fn finalize_answer(
         answer_text.trim(),
         selected_model
     );
+    if let Some(context) = rag_context {
+        text.push_str(&format!(
+            "\n[Info RAG: {} preuve(s) locale(s), corpus={}]",
+            context.evidence_count, context.corpus_label
+        ));
+    }
     if let Some(note) = model_note {
         text.push_str(&format!("\n[Info modèle: {}]", note));
     }

@@ -7,7 +7,10 @@ mod packet;
 
 use std::sync::Mutex;
 
-use capture::{list_interfaces as list_capture_interfaces, CaptureManager};
+use capture::{
+    list_interfaces as list_capture_interfaces, list_interfaces_details as list_capture_interfaces_details,
+    CaptureInterfaceInfo, CaptureManager,
+};
 use packet::PacketRecord;
 use tauri::State;
 
@@ -19,6 +22,11 @@ struct AppState {
 #[tauri::command]
 fn list_interfaces() -> Result<Vec<String>, String> {
     list_capture_interfaces()
+}
+
+#[tauri::command]
+fn list_interfaces_details() -> Result<Vec<CaptureInterfaceInfo>, String> {
+    list_capture_interfaces_details()
 }
 
 #[tauri::command]
@@ -65,6 +73,15 @@ async fn ai_status() -> Result<ai::AiHealthStatus, String> {
 }
 
 #[tauri::command]
+async fn ask_ai_question(
+    question: String,
+    model: Option<String>,
+    packet: Option<PacketRecord>,
+) -> Result<String, String> {
+    ai::ask_ai_question(question, model, packet).await
+}
+
+#[tauri::command]
 fn export_pcap(state: State<AppState>) -> Result<String, String> {
     let manager = state
         .capture
@@ -84,11 +101,13 @@ fn main() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             list_interfaces,
+            list_interfaces_details,
             start_capture,
             stop_capture,
             explain_packet,
             explain_packet_stream,
             ai_status,
+            ask_ai_question,
             export_pcap,
             export_packets
         ])

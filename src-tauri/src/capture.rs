@@ -31,6 +31,16 @@ pub struct CaptureStatusEvent {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct CaptureInterfaceInfo {
+    pub name: String,
+    pub display_name: String,
+    pub kind: String,
+    pub description: String,
+    pub osi_hint: String,
+    pub mac_address: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy)]
 enum ByteOrder {
     Little,
@@ -130,6 +140,11 @@ impl CaptureManager {
 }
 
 pub fn list_interfaces() -> Result<Vec<String>, String> {
+    let details = list_interfaces_details()?;
+    Ok(details.into_iter().map(|item| item.name).collect())
+}
+
+pub fn list_interfaces_details() -> Result<Vec<CaptureInterfaceInfo>, String> {
     let output = Command::new("dumpcap")
         .arg("-D")
         .output()
@@ -158,12 +173,137 @@ pub fn list_interfaces() -> Result<Vec<String>, String> {
             continue;
         };
 
-        if !name.is_empty() && !interfaces.iter().any(|itf| itf == name) {
-            interfaces.push(name.to_string());
+        let description = rest
+            .strip_prefix(name)
+            .map(str::trim)
+            .unwrap_or_default()
+            .trim_matches(|ch| ch == '(' || ch == ')')
+            .to_string();
+
+        if name.is_empty() || interfaces.iter().any(|itf: &CaptureInterfaceInfo| itf.name == name) {
+            continue;
         }
+
+        let kind = classify_interface_kind(name, &description);
+        let display_name = if description.is_empty() {
+            name.to_string()
+        } else {
+            format!("{name} — {description}")
+        };
+        let osi_hint = format!(
+            "{kind}: point d'entrée couche 1 (matériel) puis couche 2 (trame Ethernet/Wi-Fi)."
+        );
+        let mac_address = read_interface_mac(name);
+
+        interfaces.push(CaptureInterfaceInfo {
+            name: name.to_string(),
+            display_name,
+            kind,
+            description,
+            osi_hint,
+            mac_address,
+        });
     }
 
     Ok(interfaces)
+}
+
+fn classify_interface_kind(name: &str, description: &str) -> String {
+    let lowered_name = name.to_ascii_lowercase();
+    let lowered_description = description.to_ascii_lowercase();
+    let corpus = format!("{lowered_name} {lowered_description}");
+
+    if corpus.contains("loopback") || lowered_name == "lo" || lowered_name.starts_with("lo") {
+        return "Boucle locale (loopback)".to_string();
+    }
+    if corpus.contains("wifi")
+        || corpus.contains("wi-fi")
+        || corpus.contains("wlan")
+        || corpus.contains("airport")
+    {
+        return "Interface Wi-Fi".to_string();
+    }
+    if corpus.contains("ethernet") || lowered_name.starts_with("eth") || lowered_name.starts_with("en") {
+        return "Interface Ethernet".to_string();
+    }
+    if corpus.contains("vpn")
+        || corpus.contains("utun")
+        || corpus.contains("tun")
+        || corpus.contains("tap")
+    {
+        return "Tunnel / VPN".to_string();
+    }
+    if corpus.contains("bridge")
+        || corpus.contains("docker")
+        || corpus.contains("vmnet")
+        || corpus.contains("virtual")
+    {
+        return "Interface virtuelle / bridge".to_string();
+    }
+
+    "Interface réseau".to_string()
+}
+
+fn read_interface_mac(interface_name: &str) -> Option<String> {
+    // macOS/BSD path: `ifconfig <iface>` contains `ether xx:xx:xx:xx:xx:xx`
+    if let Ok(output) = Command::new("ifconfig").arg(interface_name).output() {
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            if let Some(mac) = extract_mac_from_text(&text) {
+                return Some(mac);
+            }
+        }
+    }
+
+    // Linux fallback: `ip link show <iface>` contains `link/ether xx:xx:xx:xx:xx:xx`
+    if let Ok(output) = Command::new("ip")
+        .arg("link")
+        .arg("show")
+        .arg(interface_name)
+        .output()
+    {
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            if let Some(mac) = extract_mac_from_text(&text) {
+                return Some(mac);
+            }
+        }
+    }
+
+    None
+}
+
+fn extract_mac_from_text(text: &str) -> Option<String> {
+    for line in text.lines() {
+        let mut parts = line.split_whitespace();
+        while let Some(part) = parts.next() {
+            if part.eq_ignore_ascii_case("ether")
+                || part.eq_ignore_ascii_case("lladdr")
+                || part.eq_ignore_ascii_case("link/ether")
+            {
+                if let Some(candidate) = parts.next() {
+                    let cleaned = candidate
+                        .trim_matches(|ch: char| ch == ',' || ch == ';')
+                        .to_ascii_lowercase();
+                    if is_mac_address(&cleaned) {
+                        return Some(cleaned);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_mac_address(candidate: &str) -> bool {
+    let mut count = 0usize;
+    for group in candidate.split(':') {
+        if group.len() != 2 || !group.chars().all(|ch| ch.is_ascii_hexdigit()) {
+            return false;
+        }
+        count += 1;
+    }
+    count == 6
 }
 
 fn run_capture_loop(

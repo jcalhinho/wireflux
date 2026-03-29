@@ -1,0 +1,99 @@
+.ai-block.ai-rich h1,
+.ai-block.ai-rich h2,
+.ai-block.ai-rich h3,
+.ai-block.ai-rich h4 {
+  margin: 2px 0 8px;
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  color: #20456f;
+}
+
+.ai-block.ai-rich h1 {
+  font-size: 0.95rem;
+}
+
+.ai-block.ai-rich h2 {
+  font-size: 0.9rem;
+}
+
+.ai-block.ai-rich h3 {
+  font-size: 0.84rem;
+}
+
+.ai-block.ai-rich h4 {
+  font-size: 0.79rem;
+}
+
+.ai-block.ai-rich ul,
+.ai-block.ai-rich ol {
+  margin: 0 0 7px;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+
+.ai-block.ai-rich li {
+  line-height: 1.4;
+}
+
+.ai-block.ai-rich blockquote {
+  margin: 0 0 8px;
+  border-left: 3px solid rgba(15, 109, 243, 0.35);
+  padding: 4px 0 4px 8px;
+  color: #305984;
+  background: rgba(15, 109, 243, 0.06);
+  border-radius: 0 8px 8px 0;
+}
+
+.ai-block.ai-rich hr {
+  border: 0;
+  border-top: 1px solid #c7d7ee;
+  margin: 8px 0;
+}
+
+.ai-block.ai-rich code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.67rem;
+  background: rgba(12, 26, 48, 0.07);
+  border: 1px solid rgba(25, 62, 110, 0.16);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+.ai-block.ai-rich .ai-code {
+  margin: 0 0 8px;
+  border: 1px solid #c6d7ed;
+  border-radius: 9px;
+  background: #f3f8ff;
+  overflow: auto;
+}
+
+.ai-block.ai-rich .ai-code .code-head {
+  min-height: 22px;
+  border-bottom: 1px solid #d3e0f1;
+  background: #eaf2ff;
+  padding: 3px 8px;
+}
+
+.ai-block.ai-rich .ai-code .code-lang {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.63rem;
+  color: #2e5683;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-block.ai-rich .ai-code code {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.66rem;
+  line-height: 1.42;
+  padding: 8px;
+  white-space: pre;
+}
+
+.ai-block.ai-rich a {
+  color: #0d4eb2;
+  text-decoration-thickness: 1px;
+}

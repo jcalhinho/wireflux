@@ -1,9 +1,34 @@
-import { graphModal, largeChartEl, metricBps, metricPps, metricTotal, miniChartEl, setStatus, state } from "./domState.js";
+import { graphModal, largeChartEl, MAX_STORED_PACKETS, metricBps, metricPps, metricTotal, miniChartEl, setStatus, state } from "./domState.js";
 import { maybeDetectTrafficSpike } from "./alerts.js";
+import { getLayerFilteredPackets, resolveOsiLayer } from "./helpers.js";
 
 const MAX_GRAPH_BARS = 72;
 const MINI_MAX_LABELS = 8;
 const LARGE_MAX_LABELS = 18;
+const LAYER_LEVELS = {
+  l2: 1,
+  l3: 2,
+  l4: 3,
+  l5: 4,
+  l6: 5,
+  l7: 6,
+};
+const LAYER_LABELS = {
+  1: "L2 Data Link",
+  2: "L3 Network",
+  3: "L4 Transport",
+  4: "L5 Session",
+  5: "L6 Presentation",
+  6: "L7 Application",
+};
+const LAYER_COLORS = {
+  1: "#7c3aed",
+  2: "#d97706",
+  3: "#0f6df3",
+  4: "#0ea5b8",
+  5: "#19a97d",
+  6: "#0d9466",
+};
 
 function formatBytes(value) {
   const bytes = Number(value || 0);
@@ -20,13 +45,14 @@ function formatBytes(value) {
 }
 
 function buildPacketBuckets() {
-  const packets = state.packets;
+  const packets = getLayerFilteredPackets();
   if (!Array.isArray(packets) || packets.length === 0) {
     return {
       labels: [],
       byteTotals: [],
       packetCounts: [],
       averageSizes: [],
+      layerMaxLevels: [],
       ranges: [],
       bucketSize: 1,
     };
@@ -38,6 +64,7 @@ function buildPacketBuckets() {
   const byteTotals = [];
   const packetCounts = [];
   const averageSizes = [];
+  const layerMaxLevels = [];
   const ranges = [];
 
   for (let startIndex = 0; startIndex < totalPackets; startIndex += bucketSize) {
@@ -48,11 +75,35 @@ function buildPacketBuckets() {
     const avg = count > 0 ? bytes / count : 0;
     const first = slice[0];
     const last = slice[count - 1];
+    const layerVotes = new Map([
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+      [5, 0],
+      [6, 0],
+    ]);
+
+    for (const packet of slice) {
+      const layerKey = resolveOsiLayer(packet);
+      const level = LAYER_LEVELS[layerKey] || 1;
+      layerVotes.set(level, (layerVotes.get(level) || 0) + 1);
+    }
+
+    let dominantLayer = 1;
+    let dominantCount = -1;
+    for (const [level, countValue] of layerVotes.entries()) {
+      if (countValue > dominantCount || (countValue === dominantCount && level > dominantLayer)) {
+        dominantLayer = level;
+        dominantCount = countValue;
+      }
+    }
 
     labels.push(bucketSize === 1 ? `#${last.id}` : `#${first.id}-#${last.id}`);
     byteTotals.push(bytes);
     packetCounts.push(count);
     averageSizes.push(Number(avg.toFixed(1)));
+    layerMaxLevels.push(dominantLayer);
     ranges.push({
       fromId: first.id,
       toId: last.id,
@@ -66,6 +117,7 @@ function buildPacketBuckets() {
     byteTotals,
     packetCounts,
     averageSizes,
+    layerMaxLevels,
     ranges,
     bucketSize,
   };
@@ -85,6 +137,8 @@ function tooltipFormatter(params, buckets) {
   const lines = [];
   lines.push(`Paquets: #${range.fromId} -> #${range.toId}`);
   lines.push(`Fenêtre: ${range.fromTs} -> ${range.toTs}`);
+  const reachedLayer = buckets.layerMaxLevels[dataIndex] || 1;
+  lines.push(`Couche dominante: ${LAYER_LABELS[reachedLayer] || "L2 Data Link"}`);
 
   for (const point of params) {
     const marker = point.marker || "";
@@ -168,6 +222,36 @@ export function chartOption(compact = false) {
         axisLabel: { color: "#3a618c", fontSize: 10 },
         splitLine: { show: false },
       },
+      {
+        type: "value",
+        name: compact ? "" : "Couche dominante",
+        min: 1,
+        max: 6,
+        interval: 1,
+        axisLabel: {
+          color: "#3a618c",
+          fontSize: 9,
+          formatter: (value) => (compact ? "" : LAYER_LABELS[value] || ""),
+        },
+        axisLine: { show: !compact, lineStyle: { color: "#5f82aa" } },
+        axisTick: { show: !compact },
+        splitLine: { show: false },
+      },
+    ],
+    visualMap: [
+      {
+        show: false,
+        seriesIndex: 3,
+        dimension: 1,
+        pieces: [
+          { value: 1, color: LAYER_COLORS[1] },
+          { value: 2, color: LAYER_COLORS[2] },
+          { value: 3, color: LAYER_COLORS[3] },
+          { value: 4, color: LAYER_COLORS[4] },
+          { value: 5, color: LAYER_COLORS[5] },
+          { value: 6, color: LAYER_COLORS[6] },
+        ],
+      },
     ],
     series: [
       {
@@ -202,6 +286,30 @@ export function chartOption(compact = false) {
         showSymbol: false,
         data: buckets.averageSizes,
         lineStyle: { width: 1.4, color: "#0f8b72", type: "dashed" },
+      },
+      {
+        name: "Couche dominante (step)",
+        type: "line",
+        yAxisIndex: 2,
+        step: "end",
+        smooth: false,
+        showSymbol: false,
+        data: buckets.layerMaxLevels,
+        lineStyle: { width: 2.2 },
+        areaStyle: compact ? { opacity: 0 } : { color: "rgba(23, 74, 142, 0.08)" },
+        markArea: compact
+          ? undefined
+          : {
+              silent: true,
+              data: [
+                [{ yAxis: 0.5, itemStyle: { color: "rgba(124, 58, 237, 0.08)" } }, { yAxis: 1.5 }],
+                [{ yAxis: 1.5, itemStyle: { color: "rgba(217, 119, 6, 0.08)" } }, { yAxis: 2.5 }],
+                [{ yAxis: 2.5, itemStyle: { color: "rgba(15, 109, 243, 0.08)" } }, { yAxis: 3.5 }],
+                [{ yAxis: 3.5, itemStyle: { color: "rgba(14, 165, 184, 0.08)" } }, { yAxis: 4.5 }],
+                [{ yAxis: 4.5, itemStyle: { color: "rgba(25, 169, 125, 0.08)" } }, { yAxis: 5.5 }],
+                [{ yAxis: 5.5, itemStyle: { color: "rgba(13, 148, 102, 0.08)" } }, { yAxis: 6.5 }],
+              ],
+            },
       },
     ],
   };
@@ -248,7 +356,11 @@ export async function ensureChartsLoaded() {
 export function updateMetricsUi(latestPps = 0, latestBps = 0) {
   metricPps.textContent = `${latestPps} pkt/s`;
   metricBps.textContent = `${latestBps} B/s`;
-  metricTotal.textContent = `${state.totalPackets} paquets`;
+  if (state.droppedPackets > 0) {
+    metricTotal.textContent = `${state.totalPackets} paquets • fenêtre ${state.packets.length}/${MAX_STORED_PACKETS} (+${state.droppedPackets} purgés)`;
+    return;
+  }
+  metricTotal.textContent = `${state.totalPackets} paquets • fenêtre ${state.packets.length}/${MAX_STORED_PACKETS}`;
 }
 
 export function resetTrafficState() {

@@ -71,15 +71,17 @@ fn write_packets_json(path: &Path, packets: &[PacketRecord]) -> Result<(), Strin
 
 fn write_packets_csv(path: &Path, packets: &[PacketRecord]) -> Result<(), String> {
     let mut out = String::new();
-    out.push_str("id,timestamp,source,source_port,destination,destination_port,protocol,ip_version,ttl_or_hop_limit,tcp_flags,ethertype,length,info,raw_hex\n");
+    out.push_str("id,timestamp,source,source_mac,source_port,destination,destination_mac,destination_port,protocol,ip_version,ttl_or_hop_limit,tcp_flags,ethertype,length,info,raw_hex\n");
 
     for packet in packets {
         let row = [
             packet.id.to_string(),
             packet.timestamp.clone(),
             packet.source.clone(),
+            packet.source_mac.clone(),
             packet.source_port.map(|value| value.to_string()).unwrap_or_default(),
             packet.destination.clone(),
+            packet.destination_mac.clone(),
             packet
                 .destination_port
                 .map(|value| value.to_string())

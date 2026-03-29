@@ -14,7 +14,7 @@ export function renderHandshakeDecoder() {
 
   if (!state.selectedConversationKey) {
     handshakeView.innerHTML =
-      '<div class="handshake-empty">Sélectionne une conversation dans la Flow Map pour voir le handshake TCP/TLS.</div>';
+      '<div class="handshake-empty">Clique d\'abord un item dans "Flow Map Interactive": cela sélectionne un flux précis et aligne ce décodeur sur ce flux.</div>';
     return;
   }
 
@@ -27,8 +27,8 @@ export function renderHandshakeDecoder() {
   const steps = [
     {
       id: "tcp_syn",
-      title: "SYN",
-      description: "Client ouvre la connexion TCP",
+      title: "1) SYN",
+      description: "Le client demande l'ouverture d'une connexion",
       done: convo.stages.tcpSyn,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -38,8 +38,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tcp_syn_ack",
-      title: "SYN-ACK",
-      description: "Serveur accepte l'ouverture",
+      title: "2) SYN-ACK",
+      description: "Le serveur répond qu'il est prêt",
       done: convo.stages.tcpSynAck,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -49,8 +49,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tcp_ack",
-      title: "ACK",
-      description: "Client confirme: session TCP établie",
+      title: "3) ACK",
+      description: "Le client confirme, la connexion TCP est établie",
       done: convo.stages.tcpAck,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -60,8 +60,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tls_client_hello",
-      title: "ClientHello",
-      description: "Négociation TLS initiée par le client",
+      title: "4) ClientHello",
+      description: "Début du chiffrement TLS (si HTTPS)",
       done: convo.stages.tlsClientHello,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -74,8 +74,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tls_server_hello",
-      title: "ServerHello",
-      description: "Réponse TLS serveur, paramètres crypto proposés",
+      title: "5) ServerHello",
+      description: "Le serveur choisit les paramètres de chiffrement",
       done: convo.stages.tlsServerHello,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -88,8 +88,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "data",
-      title: "Data",
-      description: "Transfert applicatif après établissement du canal",
+      title: "6) Data",
+      description: "Les données applicatives circulent",
       done: convo.stages.data,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -100,6 +100,23 @@ export function renderHandshakeDecoder() {
 
   const completed = steps.filter((step) => step.done).length;
   const progress = Math.round((completed / steps.length) * 100);
+  const flowLabel = `${convo.source}:${convo.sourcePort ?? "?"} -> ${convo.destination}:${convo.destinationPort ?? "?"}`;
+  const interpretation =
+    progress >= 80
+      ? "Session majoritairement complète."
+      : progress >= 45
+        ? "Session en cours de construction."
+        : "Début de session ou flux partiel.";
+
+  const guide = document.createElement("div");
+  guide.className = "handshake-guide";
+  guide.innerHTML = `
+    <strong>Flux actif: ${escapeHtml(flowLabel)}</strong>
+    <p>Étapes 1 à 3: ouverture TCP. Étapes 4 à 5: négociation TLS (si HTTPS). Étape 6: transfert de données.</p>
+    <p>${escapeHtml(interpretation)}</p>
+    <p>Clique une étape détectée pour ouvrir directement le paquet correspondant dans le tableau.</p>
+  `;
+  handshakeView.appendChild(guide);
 
   const progressWrap = document.createElement("div");
   progressWrap.className = "handshake-progress";
@@ -133,11 +150,11 @@ export function renderHandshakeDecoder() {
 
     const meta = document.createElement("small");
     if (step.packetId) {
-      meta.textContent = `vu sur paquet #${step.packetId}`;
+      meta.textContent = `Vu sur paquet #${step.packetId}`;
     } else if (step.optional) {
-      meta.textContent = "optionnel pour ce flow";
+      meta.textContent = "Optionnel pour ce flux";
     } else {
-      meta.textContent = "en attente";
+      meta.textContent = "Pas encore observé";
     }
 
     block.appendChild(title);

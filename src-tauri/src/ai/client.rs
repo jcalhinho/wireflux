@@ -144,14 +144,14 @@ where
     {
         pending.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(index) = pending.find('\n') {
-            let line = pending[..index].trim().to_string();
+            let line = pending[..index].to_string();
             pending = pending[index + 1..].to_string();
             process_stream_line(&line, &mut full, &mut on_chunk)?;
         }
     }
 
-    let tail = pending.trim().to_string();
-    if !tail.is_empty() {
+    let tail = pending;
+    if !tail.trim().is_empty() {
         process_stream_line(&tail, &mut full, &mut on_chunk)?;
     }
 
@@ -237,7 +237,7 @@ fn process_stream_line<F>(line: &str, full: &mut String, on_chunk: &mut F) -> Re
 where
     F: FnMut(String),
 {
-    if line.is_empty() {
+    if line.trim().is_empty() {
         return Ok(());
     }
 
@@ -249,7 +249,7 @@ where
     }
 
     if let Some(piece) = parsed.get("response").and_then(Value::as_str) {
-        let sanitized = sanitize_model_answer(piece);
+        let sanitized = sanitize_model_chunk(piece);
         if !sanitized.is_empty() {
             full.push_str(&sanitized);
             on_chunk(sanitized);
@@ -277,6 +277,24 @@ fn extract_text_from_ollama_payload(payload: &Value) -> Option<String> {
     }
 
     None
+}
+
+fn sanitize_model_chunk(text: &str) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        // Important: spaces can be emitted as standalone chunks in stream mode.
+        return text.to_string();
+    }
+
+    if looks_like_internal_reasoning(trimmed) {
+        return String::new();
+    }
+
+    text.to_string()
 }
 
 fn sanitize_model_answer(text: &str) -> String {

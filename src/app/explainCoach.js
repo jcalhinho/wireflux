@@ -7,6 +7,7 @@ import {
   updateProfileStatus,
 } from "./domState.js";
 import {
+  detectLayerHeuristics,
   describeIpLayer,
   describeProtocol,
   describeTcpFlags,
@@ -16,7 +17,6 @@ import {
   isPrivateIp,
   isTlsPort,
   listItemsToHtml,
-  parseAiResponse,
   parseTcpFlags,
   serviceNameForPort,
 } from "./helpers.js";
@@ -115,6 +115,9 @@ function createQuizForPacket(packet) {
 }
 
 export function renderCoach() {
+  if (!coachView) {
+    return;
+  }
   coachView.innerHTML = "";
 
   if (!state.coach.quiz) {
@@ -205,6 +208,9 @@ export function renderCoach() {
 }
 
 export function prepareCoach(packet) {
+  if (!coachView) {
+    return;
+  }
   state.coach.packetId = packet.id;
   state.coach.quiz = createQuizForPacket(packet);
   state.coach.answered = false;
@@ -252,16 +258,12 @@ export function renderExplanationEmpty() {
   `;
 }
 
-export function renderExplanation(packet, aiRawText = "", options = {}) {
+export function renderExplanation(packet, _aiRawText = "", _options = {}) {
   if (!packet) {
     renderExplanationEmpty();
     return;
   }
 
-  const loading = Boolean(options.loading);
-  const aiError = options.aiError ? String(options.aiError) : "";
-  const streamText = options.streamText ? String(options.streamText) : "";
-  const parsedAi = parseAiResponse(aiRawText);
   const resolvedProfile = resolveProfileMode();
   const isExpert = resolvedProfile === "expert";
 
@@ -304,26 +306,32 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
           : "interne/indéterminé"
     }`,
   ];
+  const layerHeuristics = detectLayerHeuristics(packet);
+  const l6Reasons = layerHeuristics.presentation.reasons.length
+    ? layerHeuristics.presentation.reasons.join("; ")
+    : "aucun indice fort";
+  const l5Reasons = layerHeuristics.session.reasons.length
+    ? layerHeuristics.session.reasons.join("; ")
+    : "aucun indice fort";
+  const heuristicList = [
+    `L6 Présentation: ${
+      layerHeuristics.presentation.matched
+        ? `détectée (confiance ${layerHeuristics.presentation.confidence})`
+        : "non détectée"
+    }`,
+    `Indices L6: ${l6Reasons}`,
+    `Faux positifs L6: ${layerHeuristics.presentation.falsePositiveRisk} — ${layerHeuristics.presentation.falsePositiveNote}`,
+    `L5 Session: ${
+      layerHeuristics.session.matched ? `détectée (confiance ${layerHeuristics.session.confidence})` : "non détectée"
+    }`,
+    `Indices L5: ${l5Reasons}`,
+    `Faux positifs L5: ${layerHeuristics.session.falsePositiveRisk} — ${layerHeuristics.session.falsePositiveNote}`,
+  ];
 
   const pedagogicList = buildLearningHints(packet);
 
-  let aiText = parsedAi.body;
-  if (loading) {
-    aiText = streamText || "Génération IA en cours...";
-  }
-  if (aiError) {
-    aiText = `Erreur IA: ${aiError}`;
-  }
-  if (!aiText) {
-    aiText = "Réponse IA vide: lecture locale affichée ci-dessus.";
-  }
-
-  const diagnostics = parsedAi.diagnostics.length > 0 ? parsedAi.diagnostics.join("\n") : "";
-  const aiSource = parsedAi.source || (loading ? "streaming" : aiError ? "fallback local" : "non précisé");
-  const aiBodyHtml = renderAiBody(aiText, loading);
-
   explanationView.innerHTML = `
-    <article class="explain-card">
+    <article class="explain-card explain-card-simple">
       <header class="explain-header">
         <h3>Paquet #${escapeHtml(packet.id)}</h3>
         <p>${escapeHtml(packet.timestamp)} • ${escapeHtml(packet.info)}</p>
@@ -352,59 +360,17 @@ export function renderExplanation(packet, aiRawText = "", options = {}) {
         </ul>
       </div>
 
-      <section class="explain-block explain-ai">
-        <div class="explain-ai-head">
-          <h4>Interprétation IA</h4>
-          <span class="source-badge">Source: ${escapeHtml(aiSource)}</span>
-        </div>
-        <div class="ai-block ai-rich ${loading ? "is-streaming" : ""}">${aiBodyHtml}</div>
-        ${diagnostics ? `<pre class="ai-block">Diagnostic: ${escapeHtml(diagnostics)}</pre>` : ""}
-      </section>
+      <div class="explain-block">
+        <h4>Détection L5/L6 (heuristique)</h4>
+        <ul class="explain-list">
+          ${listItemsToHtml(heuristicList)}
+        </ul>
+      </div>
+
+      <p class="oracle-subtext">
+        L'analyse IA détaillée est affichée dans l'assistant flottant (bouton
+        <strong>Assistant IA</strong> dans le header).
+      </p>
     </article>
   `;
-}
-
-function renderAiBody(text, loading) {
-  const lines = String(text || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  if (lines.length === 0) {
-    const waiting = loading ? "Analyse en streaming..." : "Aucune donnée IA.";
-    return `<p>${escapeHtml(waiting)}</p>`;
-  }
-
-  const html = [];
-  let inList = false;
-
-  const closeList = () => {
-    if (inList) {
-      html.push("</ul>");
-      inList = false;
-    }
-  };
-
-  for (const line of lines) {
-    const isBullet = line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ");
-    if (isBullet) {
-      if (!inList) {
-        html.push("<ul>");
-        inList = true;
-      }
-      const cleaned = line.slice(2).trim();
-      html.push(`<li>${escapeHtml(cleaned)}</li>`);
-      continue;
-    }
-
-    closeList();
-    html.push(`<p>${escapeHtml(line)}</p>`);
-  }
-
-  closeList();
-  if (loading) {
-    html.push('<p class="ai-stream-cursor">▌</p>');
-  }
-
-  return html.join("");
 }

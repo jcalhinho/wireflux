@@ -116,6 +116,33 @@ Wireflux auto-detects Ollama on `http://127.0.0.1:11434`. If the process is not 
 
 ---
 
+### RAG Reference Pack (for grounded answers)
+
+Wireflux now includes an ingestion-ready reference pack under `public/docs/rag/` to help build reliable AI answers with citations:
+
+- `sources.json` — trusted source catalog (RFC, IANA, Wireshark, MITRE, CISA, NVD, CERT-FR, ANSSI)
+- `wireflux-reference-corpus.jsonl` — primary rich corpus used by runtime RAG
+- `chunk-schema.json` — JSON contract for your vectorized chunks
+- `chunking-policy.md` — chunk sizing, overlap, tagging, and refresh cadence
+- `prompt-policy.md` — anti-hallucination response policy with abstention/citation rules
+- `example-wireflux-corpus.jsonl` — sample records ready to embed/index
+
+Open it from the app docs page or directly at `public/docs/rag/index.html`.
+
+Runtime behavior (current implementation):
+- Local corpus loaded from `public/docs/rag/wireflux-reference-corpus.jsonl` (or `WIREFLUX_RAG_CORPUS_PATH`)
+- Source tiers loaded from `public/docs/rag/sources.json` (or `WIREFLUX_RAG_SOURCES_PATH`)
+- Top relevant chunks are injected into the AI prompt with citation refs (`source_id/doc_id`)
+- AI is instructed to abstain with `preuve insuffisante` if evidence is missing
+
+Build / refresh corpus:
+
+```bash
+npm run rag:build
+```
+
+---
+
 ### Configuration
 
 All settings are optional. Set these environment variables before launching:
@@ -338,6 +365,33 @@ ollama pull <model>
 ```
 
 Wireflux détecte Ollama automatiquement sur `http://127.0.0.1:11434`. Si le processus n'est pas lancé, il tentera de le démarrer automatiquement.
+
+---
+
+### Pack de référence RAG (réponses mieux ancrées)
+
+Wireflux inclut un pack prêt à ingérer dans `public/docs/rag/` pour produire des réponses IA plus fiables et traçables:
+
+- `sources.json` — catalogue de sources de confiance (RFC, IANA, Wireshark, MITRE, CISA, NVD, CERT-FR, ANSSI)
+- `wireflux-reference-corpus.jsonl` — corpus principal riche utilisé par le RAG runtime
+- `chunk-schema.json` — contrat JSON pour les chunks indexés
+- `chunking-policy.md` — règles de découpage, overlap, tags et fréquence de mise à jour
+- `prompt-policy.md` — policy anti-hallucination (abstention + citations obligatoires)
+- `example-wireflux-corpus.jsonl` — exemple de corpus prêt pour embeddings/indexation
+
+Accès via la page Docs de l'app, ou directement dans `public/docs/rag/index.html`.
+
+Comportement runtime (implémentation actuelle):
+- Corpus local chargé depuis `public/docs/rag/wireflux-reference-corpus.jsonl` (ou `WIREFLUX_RAG_CORPUS_PATH`)
+- Tiers des sources chargés depuis `public/docs/rag/sources.json` (ou `WIREFLUX_RAG_SOURCES_PATH`)
+- Les chunks les plus pertinents sont injectés dans le prompt IA avec références (`source_id/doc_id`)
+- L'IA reçoit l'instruction d'écrire `preuve insuffisante` si les preuves manquent
+
+Construire / mettre à jour le corpus:
+
+```bash
+npm run rag:build
+```
 
 ---
 
