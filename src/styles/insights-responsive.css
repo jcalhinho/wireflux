@@ -362,13 +362,7 @@
     width: 100%;
   }
 
-  .wf-kpi-row {
-    width: 100%;
-    grid-template-columns: 1fr;
-  }
-
   .wf-hero {
-    flex-direction: column;
     align-items: flex-start;
   }
 
@@ -412,6 +406,17 @@
   .wf-actions select,
   .wf-actions button {
     width: 100%;
+  }
+
+  .wf-status-cluster {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .wf-status-pill {
+    width: 100%;
+    justify-content: center;
   }
 
   .wf-mini-links {

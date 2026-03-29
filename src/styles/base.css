@@ -183,6 +183,27 @@ button.ghost {
   color: #1f4d93;
 }
 
+.wf-status-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 4px;
+}
+
+.wf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #355178;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  line-height: 1;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
 .wf-sidenav {
   grid-column: 1;
   grid-row: 2;
@@ -292,8 +313,8 @@ button.ghost {
 
 .wf-hero {
   display: flex;
-  justify-content: space-between;
-  align-items: end;
+  justify-content: flex-start;
+  align-items: flex-end;
   gap: 14px;
 }
 
@@ -310,39 +331,16 @@ button.ghost {
   max-width: 52ch;
 }
 
-.wf-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(130px, 1fr));
-  gap: 8px;
-}
-
-.wf-kpi-row article {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel-strong);
-  padding: 9px 10px;
-  min-width: 0;
-}
-
-.wf-kpi-row span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.64rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.wf-kpi-row strong {
-  font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 0.96rem;
-}
-
 .status-running {
-  color: var(--ok);
+  color: #0c7751;
+  border-color: rgba(12, 119, 81, 0.35);
+  background: rgba(12, 119, 81, 0.1);
 }
 
 .status-error {
-  color: var(--danger);
+  color: #9a1c1c;
+  border-color: rgba(154, 28, 28, 0.34);
+  background: rgba(154, 28, 28, 0.1);
 }
 
 .panel-header {

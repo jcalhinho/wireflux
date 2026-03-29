@@ -5,6 +5,7 @@ import {
   modelSelect,
   nextPageBtn,
   openGraphBtn,
+  pageSizeSelect,
   packetFilterInput,
   prevPageBtn,
   profileSelect,
@@ -104,19 +105,28 @@ async function init() {
     reselectCurrentPacket();
   });
 
-  profileSelect.addEventListener("change", () => {
-    state.profileMode = profileSelect.value || "auto";
-    updateProfileStatus();
+  if (profileSelect) {
+    profileSelect.addEventListener("change", () => {
+      state.profileMode = profileSelect.value || "auto";
+      updateProfileStatus();
 
-    if (state.selectedPacketId) {
-      const packet = findPacketById(state.selectedPacketId);
-      if (packet) {
-        const key = aiCacheKey(packet.id, state.selectedModel);
-        renderExplanation(packet, state.aiCache.get(key) || "", {
-          aiError: state.aiErrorCache.get(key) || "",
-        });
+      if (state.selectedPacketId) {
+        const packet = findPacketById(state.selectedPacketId);
+        if (packet) {
+          const key = aiCacheKey(packet.id, state.selectedModel);
+          renderExplanation(packet, state.aiCache.get(key) || "", {
+            aiError: state.aiErrorCache.get(key) || "",
+          });
+        }
       }
-    }
+    });
+  }
+
+  pageSizeSelect?.addEventListener("change", () => {
+    const nextSize = Number.parseInt(String(pageSizeSelect.value || "20"), 10);
+    state.pageSize = Number.isFinite(nextSize) && nextSize > 0 ? nextSize : 20;
+    state.currentPage = 1;
+    renderTablePage();
   });
 
   prevPageBtn.addEventListener("click", () => {

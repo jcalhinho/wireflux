@@ -24,6 +24,8 @@ export const metricTotal = document.getElementById("metricTotal");
 export const pageText = document.getElementById("pageText");
 export const prevPageBtn = document.getElementById("prevPageBtn");
 export const nextPageBtn = document.getElementById("nextPageBtn");
+export const pageSizeSelect = document.getElementById("pageSizeSelect");
+export const pageSummary = document.getElementById("pageSummary");
 
 export const packetFilterInput = document.getElementById("packetFilterInput");
 export const openGraphBtn = document.getElementById("openGraphBtn");
@@ -47,7 +49,6 @@ export const exportJsonBtn = document.getElementById("exportJsonBtn");
 export const docsBtn = document.getElementById("docsBtn");
 
 export const MAX_STORED_PACKETS = 10_000;
-export const PAGE_SIZE = 14;
 export const MAX_POINTS = 90;
 export const MAX_ALERTS = 80;
 export const MAX_STORY_EVENTS = 180;
@@ -130,6 +131,7 @@ export const state = {
   selectedConversationKey: null,
   selectedModel: null,
   currentPage: 1,
+  pageSize: 20,
   isCaptureRunning: false,
   tickTimer: null,
   currentSecondPackets: 0,
@@ -178,18 +180,33 @@ export const state = {
 };
 
 export function setStatus(status, message = "") {
-  statusText.textContent = message || status;
-  statusText.classList.remove("status-running", "status-error");
-  if (status === "running") {
-    statusText.classList.add("status-running");
+  if (!statusText) {
+    return;
   }
-  if (status === "error") {
+
+  const normalized = String(status || "").toLowerCase();
+  statusText.classList.remove("status-running", "status-error", "hidden");
+
+  if (normalized === "idle") {
+    statusText.classList.add("hidden");
+    statusText.textContent = "";
+    return;
+  }
+
+  const value = message || status || "status";
+  statusText.textContent = `Capture: ${value}`;
+  if (normalized === "running") {
+    statusText.classList.add("status-running");
+  } else if (normalized === "error") {
     statusText.classList.add("status-error");
   }
 }
 
 export function setAiStatus(text, isError = false) {
-  aiStatusText.textContent = text;
+  if (!aiStatusText) {
+    return;
+  }
+  aiStatusText.textContent = `IA: ${text}`;
   aiStatusText.classList.toggle("status-error", isError);
 }
 
@@ -212,6 +229,9 @@ export function resolveProfileMode() {
 }
 
 export function updateProfileStatus() {
+  if (!profileStatusText) {
+    return;
+  }
   const resolved = resolveProfileMode();
   profileStatusText.textContent = `${state.profileMode} (${resolved})`;
 }

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wireflux Docs | Parcours Réseau & Cybersécurité</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f7fb;
+        --card: #ffffff;
+        --text: #152237;
+        --muted: #4b5f7b;
+        --primary: #0e5ed9;
+        --border: #d7e0ee;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 0% 0%, rgba(14, 94, 217, 0.12) 0%, transparent 28%),
+          radial-gradient(circle at 100% 100%, rgba(10, 150, 120, 0.09) 0%, transparent 25%),
+          var(--bg);
+      }
+      .shell {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px 16px 42px;
+        display: grid;
+        gap: 16px;
+      }
+      .hero {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--card);
+        padding: 18px;
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        letter-spacing: -0.03em;
+      }
+      .hero p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        max-width: 76ch;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+      }
+      .badge {
+        display: inline-flex;
+        width: fit-content;
+        border: 1px solid rgba(14, 94, 217, 0.24);
+        background: rgba(14, 94, 217, 0.09);
+        color: #194f9f;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      h2,
+      h3 {
+        margin: 0;
+      }
+      h3 {
+        font-size: 1rem;
+      }
+      p,
+      li {
+        font-size: 0.92rem;
+        line-height: 1.48;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 5px;
+      }
+      .timeline {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+        padding: 14px;
+      }
+      .timeline ol {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 8px;
+      }
+      .timeline strong {
+        color: var(--primary);
+      }
+      .note {
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 0.88rem;
+        color: #30517b;
+        background: #f8fbff;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <h1>Wireflux Academy</h1>
+        <p>
+          Parcours progressif pour comprendre le réseau, analyser des paquets et monter en compétence
+          cybersécurité. Chaque niveau propose des objectifs, des exercices et des critères de passage.
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <span class="badge">Niveau 1</span>
+          <h3>Découverte Réseau</h3>
+          <p>Objectif: lire une capture sans se perdre.</p>
+          <ul>
+            <li>Modèle OSI et rôle de chaque couche.</li>
+            <li>Différence IPv4/IPv6, MAC, port, protocole.</li>
+            <li>TCP vs UDP, handshake, flags essentiels.</li>
+            <li>Exercice: identifier 10 paquets (DNS, HTTPS, ARP, ICMP).</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <span class="badge">Niveau 2</span>
+          <h3>Analyse Intermédiaire</h3>
+          <p>Objectif: relier les paquets à un scénario applicatif.</p>
+          <ul>
+            <li>Lecture d’une session client/serveur complète.</li>
+            <li>Interprétation des timings et tailles de paquets.</li>
+            <li>TLS de base: ClientHello, ServerHello, flux chiffré.</li>
+            <li>Exercice: reconstruire un échange web de bout en bout.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <span class="badge">Niveau 3</span>
+          <h3>Sécurité Opérationnelle</h3>
+          <p>Objectif: détecter les comportements anormaux dans le trafic.</p>
+          <ul>
+            <li>Patterns de scan (SYN scan, port sweep).</li>
+            <li>Brute force, beaconing, bursts d’exfiltration.</li>
+            <li>Construction d’hypothèses + validation par preuves.</li>
+            <li>Exercice: classifier des captures “normal vs suspect”.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <span class="badge">Niveau 4</span>
+          <h3>Expert Cyber</h3>
+          <p>Objectif: conduire une investigation réseau de niveau SOC/CSIRT.</p>
+          <ul>
+            <li>Pivoting multi-sources: paquets, logs, IOC, contexte métier.</li>
+            <li>Analyse ATT&CK: tactiques, techniques, impact probable.</li>
+            <li>Plan de réponse: containment, éradication, durcissement.</li>
+            <li>Exercice: produire un rapport incident complet et défendable.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="timeline">
+        <h2>Plan de progression recommandé (12 semaines)</h2>
+        <ol>
+          <li><strong>S1-S2:</strong> Fondamentaux IP/TCP, lecture de capture simple.</li>
+          <li><strong>S3-S5:</strong> Sessions applicatives, DNS/HTTP/TLS, filtrage efficace.</li>
+          <li><strong>S6-S8:</strong> Détection d’anomalies et scénarios d’attaque courants.</li>
+          <li><strong>S9-S12:</strong> Investigation avancée, rapport et remédiation.</li>
+        </ol>
+      </section>
+
+      <div class="note">
+        Conseil: dans Wireflux, travaille en boucle courte: sélection d’un paquet, hypothèse, validation avec le
+        graphe, puis confirmation dans la table et l’explication IA.
+      </div>
+    </main>
+  </body>
+</html>

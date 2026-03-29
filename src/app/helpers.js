@@ -1,4 +1,4 @@
-import { KNOWN_PORTS, PAGE_SIZE, state } from "./domState.js";
+import { KNOWN_PORTS, state } from "./domState.js";
 
 const APPLICATION_PORTS = new Set([
   20, 21, 22, 25, 53, 80, 110, 123, 143, 443, 587, 993, 995, 3306, 5432, 6379, 8080, 8443,
@@ -70,6 +70,30 @@ export function parseTcpFlags(flagsText) {
       .map((value) => value.trim().toUpperCase())
       .filter(Boolean),
   );
+}
+
+const APP_LAYER_PORTS = new Set([
+  20, 21, 22, 23, 25, 53, 67, 68, 80, 110, 123, 143, 443,
+  587, 636, 993, 995, 3306, 3389, 5432, 5900, 6379, 8080, 8443,
+]);
+
+export function resolveOsiLayer(packet) {
+  const proto = String(packet.protocol || "").toUpperCase();
+
+  if (proto === "ARP") return "l2";
+  if (proto === "ICMP" || proto === "ICMPV6") return "l3";
+
+  const dport = packet.destination_port;
+  const sport = packet.source_port;
+  if (
+    (dport != null && APP_LAYER_PORTS.has(dport)) ||
+    (sport != null && APP_LAYER_PORTS.has(sport))
+  ) {
+    return "l7";
+  }
+
+  if (proto === "TCP" || proto === "UDP") return "l4";
+  return "l3";
 }
 
 export function isDnsPacket(packet) {
@@ -292,7 +316,7 @@ export function getFilteredPackets() {
 }
 
 export function totalPages() {
-  return Math.max(1, Math.ceil(getFilteredPackets().length / PAGE_SIZE));
+  return Math.max(1, Math.ceil(getFilteredPackets().length / state.pageSize));
 }
 
 export function getPagedPackets(page) {
@@ -302,9 +326,9 @@ export function getPagedPackets(page) {
     return [];
   }
 
-  const start = (page - 1) * PAGE_SIZE;
+  const start = (page - 1) * state.pageSize;
   const output = [];
-  for (let offset = 0; offset < PAGE_SIZE; offset += 1) {
+  for (let offset = 0; offset < state.pageSize; offset += 1) {
     const position = start + offset;
     if (position >= total) {
       break;

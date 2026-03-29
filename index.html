@@ -35,19 +35,15 @@
             Modèle IA
             <select id="modelSelect"></select>
           </label>
-          <label>
-            Profil
-            <select id="profileSelect">
-              <option value="auto">Auto</option>
-              <option value="beginner">Débutant</option>
-              <option value="expert">Expert</option>
-            </select>
-          </label>
           <button id="refreshInterfacesBtn" class="ghost" data-tip="Recharge les interfaces disponibles.">
             Rafraîchir
           </button>
           <button id="startBtn" data-tip="Démarre la capture de paquets.">Start Capture</button>
           <button id="stopBtn" disabled data-tip="Stoppe la capture.">Stop</button>
+          <div class="wf-status-cluster" aria-live="polite">
+            <span id="aiStatusText" class="wf-status-pill">IA: en attente</span>
+            <span id="statusText" class="wf-status-pill hidden">capture</span>
+          </div>
         </div>
       </header>
 
@@ -96,20 +92,6 @@
           <div>
             <h2>The Packet Laboratory</h2>
             <p>Analyse en temps réel, pédagogie par couche et détection comportementale.</p>
-          </div>
-          <div class="wf-kpi-row">
-            <article>
-              <span>Capture</span>
-              <strong id="statusText">idle</strong>
-            </article>
-            <article>
-              <span>IA</span>
-              <strong id="aiStatusText">en attente</strong>
-            </article>
-            <article>
-              <span>Niveau</span>
-              <strong id="profileStatusText">auto (débutant)</strong>
-            </article>
           </div>
         </section>
 
@@ -191,11 +173,20 @@
                   placeholder="Filtrer IP / port / proto"
                   aria-label="Filtrer les paquets"
                 />
+                <label class="rows-select">
+                  Lignes
+                  <select id="pageSizeSelect" aria-label="Lignes par page">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="40">40</option>
+                  </select>
+                </label>
                 <div class="table-pager" aria-label="Pagination capture">
                   <button id="prevPageBtn" class="ghost" data-tip="Page précédente.">◀</button>
                   <span id="pageText">Page 1 / 1</span>
                   <button id="nextPageBtn" class="ghost" data-tip="Page suivante.">▶</button>
                 </div>
+                <span id="pageSummary" class="page-summary">0 affichés</span>
                 <button
                   type="button"
                   class="ghost panel-toggle"
@@ -216,7 +207,8 @@
                     <tr>
                       <th>#</th>
                       <th>Heure</th>
-                      <th>Flux</th>
+                      <th>Source</th>
+                      <th>Destination</th>
                       <th>Proto</th>
                       <th>Taille</th>
                     </tr>
@@ -372,7 +364,7 @@
     <div id="graphModal" class="graph-modal hidden" aria-hidden="true">
       <div class="graph-modal-card">
         <div class="graph-modal-header">
-          <h3>Graphe Trafic Détaillé</h3>
+          <h3>Graphe Trafic (tranches de paquets)</h3>
           <button id="closeGraphBtn" class="ghost">Fermer</button>
         </div>
         <div id="trafficChartLarge" class="traffic-chart-large" aria-label="Graphe détaillé"></div>

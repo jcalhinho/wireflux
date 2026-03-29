@@ -2,6 +2,7 @@ import {
   conversationKeyForPacket,
   nextPageBtn,
   packetBody,
+  pageSummary,
   pageText,
   prevPageBtn,
   state,
@@ -10,7 +11,9 @@ import {
   describeProtocol,
   escapeHtml,
   formatOptional,
+  getFilteredPackets,
   getPagedPackets,
+  resolveOsiLayer,
   serviceNameForPort,
   totalPages,
 } from "./helpers.js";
@@ -22,12 +25,22 @@ export function setTableHooks(hooks) {
 }
 
 export function renderPageControls() {
+  const filteredCount = getFilteredPackets().length;
   const pages = totalPages();
   if (state.currentPage > pages) {
     state.currentPage = pages;
   }
 
   pageText.textContent = `Page ${state.currentPage} / ${pages}`;
+  if (pageSummary) {
+    if (filteredCount === 0) {
+      pageSummary.textContent = "0 / 0";
+    } else {
+      const start = (state.currentPage - 1) * state.pageSize + 1;
+      const end = Math.min(filteredCount, state.currentPage * state.pageSize);
+      pageSummary.textContent = `${start}-${end} / ${filteredCount}`;
+    }
+  }
   prevPageBtn.disabled = state.currentPage <= 1;
   nextPageBtn.disabled = state.currentPage >= pages;
 }
@@ -53,32 +66,30 @@ function createCell(content, tooltipText = "", className = "") {
   return td;
 }
 
-function buildFlowCell(packet) {
-  const sourcePort = formatOptional(packet.source_port, "?");
-  const destinationPort = formatOptional(packet.destination_port, "?");
-  const flowLabel = `${packet.source} -> ${packet.destination}`;
-  const portsLabel = `${sourcePort} -> ${destinationPort}`;
+function buildEndpointCell(packet, side) {
+  const isSource = side === "source";
+  const ip = isSource ? packet.source : packet.destination;
+  const port = isSource ? packet.source_port : packet.destination_port;
+  const service = serviceNameForPort(port);
+  const title = isSource ? "Source" : "Destination";
 
   const html = `
-    <span class="cell-flow">${escapeHtml(flowLabel)}</span>
-    <span class="cell-sub">ports ${escapeHtml(portsLabel)}</span>
+    <span class="cell-flow">${escapeHtml(ip)}</span>
+    <span class="cell-sub">port ${escapeHtml(formatOptional(port, "?"))} • ${escapeHtml(service)}</span>
   `;
-
   const tip = [
-    `Source: ${packet.source}:${sourcePort}`,
-    `Destination: ${packet.destination}:${destinationPort}`,
-    `Service destination: ${serviceNameForPort(packet.destination_port)}`,
-    `Service source: ${serviceNameForPort(packet.source_port)}`,
-    `Info: ${packet.info}`,
+    `${title}: ${ip}:${formatOptional(port, "?")}`,
+    `Service: ${service}`,
     `Conversation: ${conversationKeyForPacket(packet)}`,
+    `Info: ${packet.info}`,
   ].join("\n");
-
   return createCell(html, tip);
 }
 
 function buildProtocolCell(packet) {
   const label = `${packet.ip_version}/${packet.protocol}`;
-  const html = `<span class="proto-pill">${escapeHtml(label)}</span>`;
+  const layer = resolveOsiLayer(packet);
+  const html = `<span class="proto-pill" data-layer="${layer}">${escapeHtml(label)}</span>`;
   const tip = [
     `Couche réseau: ${packet.ip_version}`,
     `Couche transport: ${packet.protocol}`,
@@ -103,7 +114,7 @@ export function renderTablePage() {
   const pagePackets = getPagedPackets(state.currentPage);
   if (pagePackets.length === 0) {
     const tr = document.createElement("tr");
-    tr.innerHTML = "<td colspan=\"5\">Aucun paquet pour l'instant.</td>";
+    tr.innerHTML = "<td colspan=\"6\">Aucun paquet pour l'instant.</td>";
     packetBody.appendChild(tr);
     return;
   }
@@ -113,6 +124,7 @@ export function renderTablePage() {
     tr.dataset.packetId = String(packet.id);
     tr.dataset.selected = String(packet.id === state.selectedPacketId);
     tr.dataset.proto = String(packet.protocol || "").toUpperCase();
+    tr.dataset.osiLayer = resolveOsiLayer(packet);
 
     tr.appendChild(
       createCell(
@@ -126,7 +138,8 @@ export function renderTablePage() {
         `Horodatage brut: ${packet.timestamp}\nLongueur: ${packet.length} octets`,
       ),
     );
-    tr.appendChild(buildFlowCell(packet));
+    tr.appendChild(buildEndpointCell(packet, "source"));
+    tr.appendChild(buildEndpointCell(packet, "destination"));
     tr.appendChild(buildProtocolCell(packet));
     tr.appendChild(buildSizeCell(packet));
 

@@ -167,7 +167,8 @@ export function bindLayerNavigation() {
 
   if (docsBtn) {
     docsBtn.addEventListener("click", () => {
-      window.open("https://www.wireshark.org/docs/", "_blank", "noopener,noreferrer");
+      const docsUrl = new URL("/docs/index.html", window.location.origin).toString();
+      window.open(docsUrl, "_blank", "noopener,noreferrer");
     });
   }
 

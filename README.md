@@ -350,7 +350,7 @@ Toutes les variables sont optionnelles :
 export WIREFLUX_OLLAMA_URL=http://127.0.0.1:11434
 
 # Forcer un modèle spécifique (défaut : auto-détection)
-export WIREFLUX_OLLAMA_MODEL=mistral
+export WIREFLUX_OLLAMA_MODEL=<model>
 
 # Timeout des requêtes en secondes (défaut : 90)
 export WIREFLUX_OLLAMA_TIMEOUT_SECS=90
@@ -379,7 +379,7 @@ export WIREFLUX_OLLAMA_NUM_PREDICT=384
 | `dumpcap: permission denied` | macOS : exécuter ChmodBPF. Linux : `sudo setcap cap_net_raw,cap_net_admin=eip $(which dumpcap)`. Windows : lancer en Admin |
 | Aucune interface listée | Vérifier que Wireshark / dumpcap est installé et dans le PATH |
 | Timeout IA | Augmenter `WIREFLUX_OLLAMA_TIMEOUT_SECS`. Les modèles plus petits sont plus rapides |
-| Aucun modèle disponible | Lancer `ollama pull mistral` (ou tout autre modèle) |
+| Aucun modèle disponible | Lancer `ollama pull <model>` (ex. mistral, llama3, phi3) |
 | Ollama ne démarre pas | Lancer `ollama serve` manuellement et vérifier le port |
 
 ---
