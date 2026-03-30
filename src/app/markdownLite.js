@@ -1,4 +1,5 @@
 import { escapeHtml } from "./helpers.js";
+import { t } from "./i18n.js";
 
 function sanitizeUrl(url) {
   const value = String(url || "").trim();
@@ -60,7 +61,9 @@ export function renderMarkdownToHtml(markdownText, options = {}) {
     .split("\n");
 
   if (lines.length === 0 || (lines.length === 1 && !lines[0].trim())) {
-    return loading ? "<p>Analyse en streaming...</p><p class=\"ai-stream-cursor\">▌</p>" : "<p>Aucune donnée IA.</p>";
+    return loading
+      ? `<p>${escapeHtml(t("markdown.streaming"))}</p><p class="ai-stream-cursor">▌</p>`
+      : `<p>${escapeHtml(t("markdown.no.data"))}</p>`;
   }
 
   const html = [];

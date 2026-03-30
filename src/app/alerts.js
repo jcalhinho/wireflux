@@ -21,6 +21,7 @@ import {
   state,
 } from "./domState.js";
 import { isPrivateIp, parseTcpFlags, safeToLocaleTime, serviceNameForPort } from "./helpers.js";
+import { t } from "./i18n.js";
 
 export function renderAlerts() {
   alertList.innerHTML = "";
@@ -28,7 +29,7 @@ export function renderAlerts() {
   if (state.alerts.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "alert-empty";
-    emptyItem.textContent = "Aucune alerte pour le moment.";
+    emptyItem.textContent = t("alerts.empty");
     alertList.appendChild(emptyItem);
     if (alertCountBadge) {
       alertCountBadge.textContent = "0";
@@ -123,8 +124,12 @@ function maybeDetectSynScan(packet, now) {
   if (uniqueTargets.size >= SYN_SCAN_PORT_THRESHOLD && now - current.lastAlertAt >= ALERT_COOLDOWN_MS) {
     pushAlert(
       "high",
-      "Comportement type scan SYN",
-      `${sourceKey} a ciblé ${uniqueTargets.size} destinations IP:port en moins de ${Math.round(SYN_SCAN_WINDOW_MS / 1000)}s.`,
+      t("alert.synscan.title"),
+      t("alert.synscan.detail", {
+        source: sourceKey,
+        count: uniqueTargets.size,
+        seconds: Math.round(SYN_SCAN_WINDOW_MS / 1000),
+      }),
     );
     current.lastAlertAt = now;
   }
@@ -153,8 +158,14 @@ function maybeDetectBruteforce(packet, now) {
   ) {
     pushAlert(
       "medium",
-      "Tentatives répétées sur port sensible",
-      `${packet.source} vers ${packet.destination}:${destinationPort} (${serviceNameForPort(destinationPort)}) avec ${current.attempts.length} SYN récents.`,
+      t("alert.bruteforce.title"),
+      t("alert.bruteforce.detail", {
+        source: packet.source,
+        destination: packet.destination,
+        port: destinationPort,
+        service: serviceNameForPort(destinationPort),
+        attempts: current.attempts.length,
+      }),
     );
     current.lastAlertAt = now;
   }
@@ -213,8 +224,14 @@ function maybeDetectBeaconing(packet, now) {
     ) {
       pushAlert(
         "medium",
-        "Pattern beaconing probable",
-        `${packet.source} -> ${packet.destination}:${packet.destination_port ?? "?"} intervalle moyen ${Math.round(avg / 1000)}s (variabilité ${cv.toFixed(2)}).`,
+        t("alert.beacon.title"),
+        t("alert.beacon.detail", {
+          source: packet.source,
+          destination: packet.destination,
+          port: packet.destination_port ?? "?",
+          avg: Math.round(avg / 1000),
+          cv: cv.toFixed(2),
+        }),
       );
       current.lastAlertAt = now;
     }
@@ -249,8 +266,14 @@ function maybeDetectExfilBurst(packet, now) {
   ) {
     pushAlert(
       "high",
-      "Exfil burst suspect",
-      `${packet.source} -> ${packet.destination} a transféré ${bytes} octets en ${Math.round(EXFIL_WINDOW_MS / 1000)}s (${packetCount} paquets).`,
+      t("alert.exfil.title"),
+      t("alert.exfil.detail", {
+        source: packet.source,
+        destination: packet.destination,
+        bytes,
+        seconds: Math.round(EXFIL_WINDOW_MS / 1000),
+        packets: packetCount,
+      }),
     );
     current.lastAlertAt = now;
   }
@@ -289,8 +312,8 @@ export function maybeDetectTrafficSpike(latestPps, latestBps) {
   if (latestPps >= threshold && latestPps >= 60 && now - state.trafficSpikeLastAlertAt >= ALERT_COOLDOWN_MS) {
     pushAlert(
       "low",
-      "Pic de trafic inhabituel",
-      `Débit ${latestPps} pkt/s (${latestBps} B/s), seuil dynamique ${threshold} pkt/s.`,
+      t("alert.spike.title"),
+      t("alert.spike.detail", { pps: latestPps, bps: latestBps, threshold }),
     );
     state.trafficSpikeLastAlertAt = now;
   }

@@ -1,6 +1,7 @@
 import { graphModal, largeChartEl, MAX_STORED_PACKETS, metricBps, metricPps, metricTotal, miniChartEl, setStatus, state } from "./domState.js";
 import { maybeDetectTrafficSpike } from "./alerts.js";
 import { getLayerFilteredPackets, resolveOsiLayer } from "./helpers.js";
+import { getLang, t } from "./i18n.js";
 
 const MAX_GRAPH_BARS = 72;
 const MINI_MAX_LABELS = 8;
@@ -125,27 +126,27 @@ function buildPacketBuckets() {
 
 function tooltipFormatter(params, buckets) {
   if (!Array.isArray(params) || params.length === 0) {
-    return "Aucune donnée";
+    return t("chart.no.data");
   }
 
   const dataIndex = Number(params[0]?.dataIndex ?? -1);
   const range = buckets.ranges[dataIndex];
   if (!range) {
-    return "Aucune donnée";
+    return t("chart.no.data");
   }
 
   const lines = [];
-  lines.push(`Paquets: #${range.fromId} -> #${range.toId}`);
-  lines.push(`Fenêtre: ${range.fromTs} -> ${range.toTs}`);
+  lines.push(t("chart.tooltip.packets", { from: range.fromId, to: range.toId }));
+  lines.push(t("chart.tooltip.window", { from: range.fromTs, to: range.toTs }));
   const reachedLayer = buckets.layerMaxLevels[dataIndex] || 1;
-  lines.push(`Couche dominante: ${LAYER_LABELS[reachedLayer] || "L2 Data Link"}`);
+  lines.push(t("chart.tooltip.layer", { layer: LAYER_LABELS[reachedLayer] || "L2 Data Link" }));
 
   for (const point of params) {
     const marker = point.marker || "";
     const value = Number(point.value || 0);
-    if (point.seriesName.includes("Octets")) {
+    if (point.seriesIndex === 0) {
       lines.push(`${marker}${point.seriesName}: ${formatBytes(value)}`);
-    } else if (point.seriesName.includes("Moyenne")) {
+    } else if (point.seriesIndex === 2) {
       lines.push(`${marker}${point.seriesName}: ${value.toFixed(1)} B`);
     } else {
       lines.push(`${marker}${point.seriesName}: ${value}`);
@@ -164,7 +165,9 @@ export function chartOption(compact = false) {
   const buckets = buildPacketBuckets();
   const labelInterval = axisLabelInterval(buckets.labels.length, compact);
   const bytesSeriesLabel =
-    buckets.bucketSize === 1 ? "Octets par paquet" : `Octets par tranche (${buckets.bucketSize} paquets)`;
+    buckets.bucketSize === 1
+      ? t("chart.series.bytes.packet")
+      : t("chart.series.bytes.bucket", { size: buckets.bucketSize });
 
   return {
     animation: false,
@@ -210,21 +213,21 @@ export function chartOption(compact = false) {
     yAxis: [
       {
         type: "value",
-        name: "Octets",
+        name: t("chart.axis.bytes"),
         nameTextStyle: { color: "#1d4f85", fontSize: 10 },
         axisLabel: { color: "#3a618c", fontSize: 10 },
         splitLine: { lineStyle: { color: "rgba(41, 121, 255, 0.14)" } },
       },
       {
         type: "value",
-        name: "Paquets",
+        name: t("chart.axis.packets"),
         nameTextStyle: { color: "#2d6eb8", fontSize: 10 },
         axisLabel: { color: "#3a618c", fontSize: 10 },
         splitLine: { show: false },
       },
       {
         type: "value",
-        name: compact ? "" : "Couche dominante",
+        name: compact ? "" : t("chart.axis.layer"),
         min: 1,
         max: 6,
         interval: 1,
@@ -270,7 +273,7 @@ export function chartOption(compact = false) {
         },
       },
       {
-        name: "Paquets par tranche",
+        name: t("chart.series.packets.bucket"),
         type: "line",
         yAxisIndex: 1,
         smooth: true,
@@ -280,7 +283,7 @@ export function chartOption(compact = false) {
         areaStyle: { color: "rgba(212, 90, 0, 0.11)" },
       },
       {
-        name: "Moyenne octets/paquet",
+        name: t("chart.series.avg.bytes"),
         type: "line",
         smooth: true,
         showSymbol: false,
@@ -288,7 +291,7 @@ export function chartOption(compact = false) {
         lineStyle: { width: 1.4, color: "#0f8b72", type: "dashed" },
       },
       {
-        name: "Couche dominante (step)",
+        name: t("chart.series.layer.step"),
         type: "line",
         yAxisIndex: 2,
         step: "end",
@@ -354,13 +357,22 @@ export async function ensureChartsLoaded() {
 }
 
 export function updateMetricsUi(latestPps = 0, latestBps = 0) {
-  metricPps.textContent = `${latestPps} pkt/s`;
-  metricBps.textContent = `${latestBps} B/s`;
+  metricPps.textContent = t("metric.pps", { value: latestPps });
+  metricBps.textContent = t("metric.bps", { value: latestBps });
   if (state.droppedPackets > 0) {
-    metricTotal.textContent = `${state.totalPackets} paquets • fenêtre ${state.packets.length}/${MAX_STORED_PACKETS} (+${state.droppedPackets} purgés)`;
+    metricTotal.textContent = t("metric.total.window.purged", {
+      total: state.totalPackets,
+      window: state.packets.length,
+      max: MAX_STORED_PACKETS,
+      dropped: state.droppedPackets,
+    });
     return;
   }
-  metricTotal.textContent = `${state.totalPackets} paquets • fenêtre ${state.packets.length}/${MAX_STORED_PACKETS}`;
+  metricTotal.textContent = t("metric.total.window", {
+    total: state.totalPackets,
+    window: state.packets.length,
+    max: MAX_STORED_PACKETS,
+  });
 }
 
 export function resetTrafficState() {
@@ -389,7 +401,7 @@ export function startGraphTicker() {
     maybeDetectTrafficSpike(latestPps, latestBps);
 
     state.timelineHistory.push(
-      new Date().toLocaleTimeString("fr-FR", {
+      new Date().toLocaleTimeString(getLang() === "en" ? "en-US" : "fr-FR", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",

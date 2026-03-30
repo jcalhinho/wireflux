@@ -1,3 +1,4 @@
+import { formatBytes, t } from "./i18n.js";
 import {
   conversationKeyForPacket,
   nextPageBtn,
@@ -36,12 +37,12 @@ const LAYER_COLORS = Object.freeze({
 });
 
 const LAYER_LABELS = Object.freeze({
-  l7: "L7 Application",
-  l6: "L6 Présentation",
-  l5: "L5 Session",
-  l4: "L4 Transport",
-  l3: "L3 Réseau",
-  l2: "L2 Liaison",
+  l7: "L7",
+  l6: "L6",
+  l5: "L5",
+  l4: "L4",
+  l3: "L3",
+  l2: "L2",
 });
 
 export function setTableHooks(hooks) {
@@ -55,14 +56,14 @@ export function renderPageControls() {
     state.currentPage = pages;
   }
 
-  pageText.textContent = `Page ${state.currentPage} / ${pages}`;
+  pageText.textContent = t("table.page", { current: state.currentPage, total: pages });
   if (pageSummary) {
     if (filteredCount === 0) {
-      pageSummary.textContent = "0 / 0";
+      pageSummary.textContent = t("table.summary.empty");
     } else {
       const start = (state.currentPage - 1) * state.pageSize + 1;
       const end = Math.min(filteredCount, state.currentPage * state.pageSize);
-      pageSummary.textContent = `${start}-${end} / ${filteredCount}`;
+      pageSummary.textContent = t("table.summary.range", { start, end, count: filteredCount });
     }
   }
   prevPageBtn.disabled = state.currentPage <= 1;
@@ -97,11 +98,11 @@ function buildEndpointCell(packet, side) {
   const mac = String(isSource ? packet.source_mac : packet.destination_mac || "");
   const safeMac = mac && mac !== "unknown" ? mac : "-";
   const service = serviceNameForPort(port);
-  const title = isSource ? "Source" : "Destination";
+  const title = isSource ? t("th.source") : t("th.dest");
 
   const html = `
     <span class="cell-flow">${escapeHtml(ip)}</span>
-    <span class="cell-sub">port ${escapeHtml(formatOptional(port, "?"))} • ${escapeHtml(service)}</span>
+    <span class="cell-sub">${escapeHtml(t("table.port"))} ${escapeHtml(formatOptional(port, "?"))} • ${escapeHtml(service)}</span>
     <span class="cell-sub">MAC ${escapeHtml(safeMac)}</span>
   `;
   const tip = [
@@ -130,83 +131,83 @@ function buildProtocolCell(packet) {
     </div>
   `;
   const tip = [
-    `Couche réseau: ${packet.ip_version}`,
-    `Couche transport: ${packet.protocol}`,
-    `Couches détectées: ${layers.map((layerKey) => LAYER_LABELS[layerKey] || layerKey).join(" → ") || "inconnu"}`,
-    `TTL/Hop: ${packet.ttl_or_hop_limit ?? "non disponible"}`,
-    `Flags TCP: ${packet.tcp_flags || "-"}`,
-    `Description: ${describeProtocol(packet.protocol)}`,
-    `L6 présentation: ${
-      heuristics.presentation.matched ? `détectée (${heuristics.presentation.confidence})` : "non détectée"
+    `${t("table.tip.network.layer")}: ${packet.ip_version}`,
+    `${t("table.tip.transport.layer")}: ${packet.protocol}`,
+    `${t("table.tip.layers.detected")}: ${layers.map((layerKey) => `${LAYER_LABELS[layerKey]} ${t(`layer.${layerKey}`)}`).join(" → ") || t("table.tip.unknown")}`,
+    `TTL/Hop: ${packet.ttl_or_hop_limit ?? t("table.tip.unavailable")}`,
+    `TCP ${t("table.tip.flags")}: ${packet.tcp_flags || "-"}`,
+    `${t("table.tip.description")}: ${describeProtocol(packet.protocol)}`,
+    `L6 ${t("table.tip.presentation")}: ${
+      heuristics.presentation.matched ? `${t("table.tip.detected")} (${heuristics.presentation.confidence})` : t("table.tip.not.detected")
     }`,
-    `L6 faux positifs: ${heuristics.presentation.falsePositiveRisk} (${heuristics.presentation.falsePositiveNote})`,
-    `L5 session: ${heuristics.session.matched ? `détectée (${heuristics.session.confidence})` : "non détectée"}`,
-    `L5 faux positifs: ${heuristics.session.falsePositiveRisk} (${heuristics.session.falsePositiveNote})`,
+    `L6 ${t("table.tip.false.positive")}: ${heuristics.presentation.falsePositiveRisk} (${heuristics.presentation.falsePositiveNote})`,
+    `L5 ${t("table.tip.session")}: ${heuristics.session.matched ? `${t("table.tip.detected")} (${heuristics.session.confidence})` : t("table.tip.not.detected")}`,
+    `L5 ${t("table.tip.false.positive")}: ${heuristics.session.falsePositiveRisk} (${heuristics.session.falsePositiveNote})`,
   ].join("\n");
 
   return createCell(html, tip);
 }
 
-function buildStoryCell(packet) {
+function buildStageCell(packet) {
   const flags = parseTcpFlags(packet.tcp_flags);
   const stages = [];
-  let narrative = "Étape de flux observée.";
+  let narrative = t("stage.observed");
 
   if (isDnsPacket(packet)) {
     stages.push("DNS");
-    narrative = "Résolution DNS.";
+    narrative = t("stage.dns");
   }
 
   if (flags.has("SYN") && !flags.has("ACK")) {
     stages.push("SYN");
-    narrative = "Ouverture TCP.";
+    narrative = t("stage.syn");
   } else if (flags.has("SYN") && flags.has("ACK")) {
     stages.push("SYN-ACK");
-    narrative = "Réponse handshake TCP.";
+    narrative = t("stage.synack");
   } else if (flags.has("ACK") && !flags.has("SYN") && !flags.has("PSH")) {
     stages.push("ACK");
-    narrative = "Confirmation de session.";
+    narrative = t("stage.ack");
   }
 
   const tlsStage = detectTlsStage(packet);
   if (tlsStage === "client_hello") {
     stages.push("TLS CH");
-    narrative = "Négociation TLS côté client.";
+    narrative = t("stage.tls.client");
   } else if (tlsStage === "server_hello") {
     stages.push("TLS SH");
-    narrative = "Négociation TLS côté serveur.";
+    narrative = t("stage.tls.server");
   } else if (tlsStage === "record") {
     stages.push("TLS");
-    narrative = "Trafic TLS chiffré.";
+    narrative = t("stage.tls.record");
   }
 
   if (isLikelyDataPacket(packet)) {
     stages.push("DATA");
-    narrative = "Données applicatives.";
+    narrative = t("stage.data");
   }
 
   if (flags.has("FIN")) {
     stages.push("FIN");
-    narrative = "Fermeture de session.";
+    narrative = t("stage.fin");
   }
   if (flags.has("RST")) {
     stages.push("RST");
-    narrative = "Réinitialisation de session.";
+    narrative = t("stage.rst");
   }
 
   const uniqueStages = Array.from(new Set(stages));
-  const main = uniqueStages.length > 0 ? uniqueStages.slice(0, 4).join(" • ") : "OBS";
+  const main = uniqueStages.length > 0 ? uniqueStages.slice(0, 4).join(" • ") : t("stage.obs");
   const html = `
     <span class="story-main">${escapeHtml(main)}</span>
     <span class="cell-sub">${escapeHtml(narrative)}</span>
   `;
   const tip = [
     `Story: ${main}`,
-    `Détail: ${narrative}`,
+    `${t("table.tip.detail")}: ${narrative}`,
     `Conversation: ${conversationKeyForPacket(packet)}`,
     `Info: ${packet.info}`,
   ].join("\n");
-  return createCell(html, tip, "story-cell");
+  return createCell(html, tip, "stage-cell");
 }
 
 function buildLayerGradient(layers) {
@@ -233,8 +234,8 @@ function buildLayerGradient(layers) {
 }
 
 function buildSizeCell(packet) {
-  const html = `<span class="size-pill">${packet.length} B</span>`;
-  const tip = `Taille capturée: ${packet.length} octets\nEtherType: ${packet.ethertype}\nHex: ${packet.raw_hex}`;
+  const html = `<span class="size-pill">${formatBytes(packet.length ?? 0)}</span>`;
+  const tip = `${t("table.tip.captured.size")}: ${packet.length} ${t("size.b")}\nEtherType: ${packet.ethertype}\nHex: ${packet.raw_hex}`;
   return createCell(html, tip);
 }
 
@@ -245,7 +246,7 @@ export function renderTablePage() {
   const pagePackets = getPagedPackets(state.currentPage);
   if (pagePackets.length === 0) {
     const tr = document.createElement("tr");
-    tr.innerHTML = "<td colspan=\"7\">Aucun paquet pour l'instant.</td>";
+    tr.innerHTML = `<td colspan="7">${escapeHtml(t("table.empty"))}</td>`;
     packetBody.appendChild(tr);
     return;
   }
@@ -264,19 +265,19 @@ export function renderTablePage() {
     tr.appendChild(
       createCell(
         escapeHtml(String(packet.id)),
-        `ID session: ${packet.id}\nTimestamp: ${packet.timestamp}\nInfo: ${packet.info}`,
+        `${t("table.tip.session.id")}: ${packet.id}\nTimestamp: ${packet.timestamp}\nInfo: ${packet.info}`,
       ),
     );
     tr.appendChild(
       createCell(
         escapeHtml(packet.timestamp),
-        `Horodatage brut: ${packet.timestamp}\nLongueur: ${packet.length} octets`,
+        `${t("table.tip.raw.timestamp")}: ${packet.timestamp}\n${t("table.tip.length")}: ${packet.length} ${t("size.b")}`,
       ),
     );
     tr.appendChild(buildEndpointCell(packet, "source"));
     tr.appendChild(buildEndpointCell(packet, "destination"));
     tr.appendChild(buildProtocolCell(packet));
-    tr.appendChild(buildStoryCell(packet));
+    tr.appendChild(buildStageCell(packet));
     tr.appendChild(buildSizeCell(packet));
 
     tr.addEventListener("click", () => {
@@ -288,5 +289,5 @@ export function renderTablePage() {
 }
 
 export function findPacketById(packetId) {
-  return state.packets.find((packet) => packet.id === packetId) || null;
+  return state.packetMap.get(packetId) ?? null;
 }

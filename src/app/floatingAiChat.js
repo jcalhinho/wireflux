@@ -11,6 +11,7 @@ import {
   state,
 } from "./domState.js";
 import { escapeHtml, formatOptional } from "./helpers.js";
+import { t } from "./i18n.js";
 import { renderMarkdownToHtml } from "./markdownLite.js";
 
 let initialized = false;
@@ -63,7 +64,7 @@ function setToggleState(open) {
 
   aiChatWidget.classList.toggle("hidden", !open);
   aiChatToggleBtn.setAttribute("aria-expanded", String(open));
-  aiChatToggleBtn.textContent = open ? "Reduire IA" : "Assistant IA";
+  aiChatToggleBtn.textContent = open ? t("btn.assistant.min") : t("btn.assistant");
 
   if (open && !pendingAsk) {
     aiChatInput.focus({ preventScroll: true });
@@ -112,7 +113,7 @@ function renderEmptyState() {
   }
 
   aiChatMessages.innerHTML =
-    '<div class="ai-chat-empty">Clique un paquet pour lancer une analyse IA automatique, ou pose une question libre ci-dessous.</div>';
+    `<div class="ai-chat-empty">${escapeHtml(t("ai.empty"))}</div>`;
   aiChatInput.value = "";
   setAskPending(false);
   resetStreaming();
@@ -158,17 +159,17 @@ async function submitQuestion() {
 
   const selectedPacket = getSelectedPacket();
   const packetHint = selectedPacket
-    ? `Contexte paquet: #${selectedPacket.id} (${selectedPacket.protocol})`
-    : "Sans contexte paquet";
+    ? t("meta.packet.context", { id: selectedPacket.id, protocol: selectedPacket.protocol })
+    : t("meta.packet.none");
 
-  appendMessage("user", "Question", `<p>${escapeHtml(question)}</p>`, packetHint);
+  appendMessage("user", t("ai.question"), `<p>${escapeHtml(question)}</p>`, packetHint);
   aiChatInput.value = "";
 
   const pending = appendMessage(
     "assistant",
-    "Reponse IA",
-    "<p>Generation en cours...</p>",
-    `Modele: ${state.selectedModel || "auto"}`,
+    t("ai.answer"),
+    `<p>${escapeHtml(t("ai.generating"))}</p>`,
+    t("ai.model", { model: state.selectedModel || "auto" }),
     "is-streaming",
   );
 
@@ -179,18 +180,19 @@ async function submitQuestion() {
       question,
       model: state.selectedModel,
       packet: selectedPacket,
+      lang: state.lang ?? "fr",
     });
 
     if (pending.item) {
       pending.item.classList.remove("is-streaming");
     }
     if (pending.body) {
-      const rendered = renderMarkdownToHtml(String(answer || "").trim() || "Reponse IA vide.");
+      const rendered = renderMarkdownToHtml(String(answer || "").trim() || t("ai.response.empty"));
       pending.body.innerHTML = rendered;
     }
     scrollToBottom();
   } catch (error) {
-    const safeError = escapeHtml(String(error || "Erreur IA"));
+    const safeError = escapeHtml(String(error || t("ai.error.generic")));
     if (pending.item) {
       pending.item.classList.remove("is-streaming");
       pending.item.classList.add("is-error");
@@ -358,9 +360,9 @@ export function showAiChatLoading(packet, model) {
   renderPacketContext(packet, model);
   const created = appendMessage(
     "assistant",
-    "Analyse IA",
-    "<p>Analyse en cours...</p>",
-    "Streaming en direct",
+    t("ai.analysis"),
+    `<p>${escapeHtml(t("ai.loading"))}</p>`,
+    t("ai.streaming"),
     "is-streaming",
   );
 
@@ -374,7 +376,7 @@ export function updateAiChatStream(packetId, streamText) {
   }
 
   const safeText = String(streamText || "").trim();
-  const rendered = renderMarkdownToHtml(safeText || "Analyse en cours...", { loading: true });
+  const rendered = renderMarkdownToHtml(safeText || t("ai.loading"), { loading: true });
   streamingBodyNode.innerHTML = rendered;
   scrollToBottom();
 }
@@ -388,8 +390,8 @@ export function showAiChatResult(packet, aiText, model) {
   renderPacketContext(packet, model);
 
   const body = String(aiText || "").trim();
-  const rendered = renderMarkdownToHtml(body || "Reponse IA vide. Utilise la lecture protocolaire locale.");
-  appendMessage("assistant", "Analyse IA", rendered, `Source: ${model || "fallback"}`);
+  const rendered = renderMarkdownToHtml(body || t("ai.response.empty.local"));
+  appendMessage("assistant", t("ai.analysis"), rendered, t("ai.source", { source: model || "fallback" }));
 
   resetStreaming();
 }
@@ -402,12 +404,12 @@ export function showAiChatError(packet, errorText, model) {
   openFloatingAiChat();
   renderPacketContext(packet, model);
 
-  const safeError = escapeHtml(String(errorText || "Erreur IA"));
+  const safeError = escapeHtml(String(errorText || t("ai.error.generic")));
   appendMessage(
     "assistant",
-    "Analyse IA",
+    t("ai.analysis"),
     `<p>${safeError}</p>`,
-    "Source: fallback local",
+    t("ai.source", { source: t("ai.source.fallback") }),
     "is-error",
   );
 

@@ -20,6 +20,7 @@ import {
   parseTcpFlags,
   serviceNameForPort,
 } from "./helpers.js";
+import { t } from "./i18n.js";
 
 let findPacketById = () => null;
 
@@ -33,84 +34,84 @@ function createQuizForPacket(packet) {
 
   if (proto === "TCP" && flags.has("SYN") && !flags.has("ACK")) {
     return {
-      question: "Ce flag SYN sert à quoi ?",
+      questionKey: "quiz.syn.question",
       options: [
-        { text: "À demander l'ouverture d'une connexion TCP", correct: true },
-        { text: "À fermer proprement une connexion", correct: false },
-        { text: "À signaler un paquet ICMP d'erreur", correct: false },
+        { textKey: "quiz.syn.opt.open", correct: true },
+        { textKey: "quiz.syn.opt.close", correct: false },
+        { textKey: "quiz.syn.opt.icmp", correct: false },
       ],
-      explanation: "SYN lance le handshake TCP en proposant un numéro de séquence initial.",
+      explanationKey: "quiz.syn.explanation",
     };
   }
 
   if (proto === "TCP" && flags.has("SYN") && flags.has("ACK")) {
     return {
-      question: "SYN-ACK correspond à quelle étape ?",
+      questionKey: "quiz.synack.question",
       options: [
-        { text: "Réponse du serveur dans le handshake TCP", correct: true },
-        { text: "Envoi applicatif chiffré TLS", correct: false },
-        { text: "Annonce de fermeture FIN", correct: false },
+        { textKey: "quiz.synack.opt.server", correct: true },
+        { textKey: "quiz.synack.opt.tls", correct: false },
+        { textKey: "quiz.synack.opt.fin", correct: false },
       ],
-      explanation: "SYN-ACK est la deuxième étape: le serveur accepte la demande SYN.",
+      explanationKey: "quiz.synack.explanation",
     };
   }
 
   if (proto === "TCP" && flags.has("PSH") && flags.has("ACK")) {
     return {
-      question: "PSH + ACK indique généralement...",
+      questionKey: "quiz.pshack.question",
       options: [
-        { text: "Des données applicatives à livrer rapidement", correct: true },
-        { text: "Une résolution DNS", correct: false },
-        { text: "Un paquet ARP de broadcast", correct: false },
+        { textKey: "quiz.pshack.opt.data", correct: true },
+        { textKey: "quiz.pshack.opt.dns", correct: false },
+        { textKey: "quiz.pshack.opt.arp", correct: false },
       ],
-      explanation: "PSH pousse les données vers l'application sans attendre de buffering supplémentaire.",
+      explanationKey: "quiz.pshack.explanation",
     };
   }
 
   if (proto === "UDP" && (packet.destination_port === 53 || packet.source_port === 53)) {
     return {
-      question: "Pourquoi DNS utilise souvent UDP/53 ?",
+      questionKey: "quiz.dns.question",
       options: [
-        { text: "Moins de latence et overhead pour requêtes courtes", correct: true },
-        { text: "Car UDP chiffre automatiquement le trafic", correct: false },
-        { text: "Pour garantir l'ordre strict des paquets", correct: false },
+        { textKey: "quiz.dns.opt.latency", correct: true },
+        { textKey: "quiz.dns.opt.encrypt", correct: false },
+        { textKey: "quiz.dns.opt.order", correct: false },
       ],
-      explanation: "UDP est léger pour des échanges courts, avec fallback TCP dans certains cas DNS.",
+      explanationKey: "quiz.dns.explanation",
     };
   }
 
   if (packet.destination_port === 443 || packet.source_port === 443) {
     return {
-      question: "Le port 443 est principalement associé à...",
+      questionKey: "quiz.443.question",
       options: [
-        { text: "HTTPS (HTTP sur TLS)", correct: true },
-        { text: "SSH", correct: false },
-        { text: "SMTP", correct: false },
+        { textKey: "quiz.443.opt.https", correct: true },
+        { textKey: "quiz.443.opt.ssh", correct: false },
+        { textKey: "quiz.443.opt.smtp", correct: false },
       ],
-      explanation: "443 est le port standard de HTTPS, généralement après handshake TCP puis TLS.",
+      explanationKey: "quiz.443.explanation",
     };
   }
 
   if (proto === "ICMP" || proto === "ICMPV6") {
     return {
-      question: "ICMP sert surtout à...",
+      questionKey: "quiz.icmp.question",
       options: [
-        { text: "Le diagnostic et les messages de contrôle réseau", correct: true },
-        { text: "Transporter des pages web", correct: false },
-        { text: "Négocier TLS", correct: false },
+        { textKey: "quiz.icmp.opt.diagnostic", correct: true },
+        { textKey: "quiz.icmp.opt.web", correct: false },
+        { textKey: "quiz.icmp.opt.tls", correct: false },
       ],
-      explanation: "ICMP/ICMPv6 transporte des messages de contrôle et de diagnostic (ex: ping).",
+      explanationKey: "quiz.icmp.explanation",
     };
   }
 
   return {
-    question: "Dans l'analyse réseau, le couple port + protocole permet surtout de...",
+    questionKey: "quiz.default.question",
     options: [
-      { text: "Inférer le service probable et la phase d'échange", correct: true },
-      { text: "Connaître automatiquement le mot de passe applicatif", correct: false },
-      { text: "Éviter totalement toute inspection de payload", correct: false },
+      { textKey: "quiz.default.opt.infer", correct: true },
+      { textKey: "quiz.default.opt.password", correct: false },
+      { textKey: "quiz.default.opt.noinspect", correct: false },
     ],
-    explanation: "Le contexte (ports, flags, taille, direction) guide l'interprétation fonctionnelle des paquets.",
+    explanationKey: "quiz.default.explanation",
   };
 }
 
@@ -121,7 +122,7 @@ export function renderCoach() {
   coachView.innerHTML = "";
 
   if (!state.coach.quiz) {
-    coachView.innerHTML = '<div class="coach-empty">Sélectionne un paquet pour lancer un quiz contextuel.</div>';
+    coachView.innerHTML = `<div class="coach-empty">${escapeHtml(t("coach.empty"))}</div>`;
     return;
   }
 
@@ -129,11 +130,11 @@ export function renderCoach() {
   wrapper.className = "coach-card";
 
   const title = document.createElement("h3");
-  title.textContent = "Quiz contextuel";
+  title.textContent = t("coach.title");
 
   const question = document.createElement("p");
   question.className = "coach-question";
-  question.textContent = state.coach.quiz.question;
+  question.textContent = t(state.coach.quiz.questionKey);
 
   const options = document.createElement("div");
   options.className = "coach-options";
@@ -142,7 +143,7 @@ export function renderCoach() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "coach-option";
-    btn.textContent = option.text;
+    btn.textContent = t(option.textKey);
 
     if (state.coach.answered) {
       if (option.correct) {
@@ -188,14 +189,14 @@ export function renderCoach() {
   footer.className = "coach-footer";
 
   const score = document.createElement("span");
-  score.textContent = `Score session: ${state.quizCorrect}/${state.quizAnswered}`;
+  score.textContent = t("coach.score", { correct: state.quizCorrect, total: state.quizAnswered });
 
   footer.appendChild(score);
 
   if (state.coach.answered) {
     const explain = document.createElement("p");
     explain.className = "coach-explain";
-    explain.textContent = state.coach.quiz.explanation;
+    explain.textContent = t(state.coach.quiz.explanationKey);
     footer.appendChild(explain);
   }
 
@@ -224,26 +225,26 @@ function buildLearningHints(packet) {
   const flags = parseTcpFlags(packet.tcp_flags);
 
   if (proto === "TCP" && flags.has("SYN") && !flags.has("ACK")) {
-    hints.push("Ce paquet est probablement l'étape 1 du handshake TCP.");
+    hints.push(t("hint.syn"));
   }
   if (proto === "TCP" && flags.has("SYN") && flags.has("ACK")) {
-    hints.push("SYN-ACK confirme que le serveur répond à une tentative d'ouverture.");
+    hints.push(t("hint.synack"));
   }
   if (proto === "TCP" && flags.has("PSH") && flags.has("ACK")) {
-    hints.push("PSH+ACK indique souvent des données applicatives dans une session déjà établie.");
+    hints.push(t("hint.pshack"));
   }
   if (isDnsPacket(packet) && proto === "UDP") {
-    hints.push("DNS en UDP/53: faible overhead pour des échanges courts.");
+    hints.push(t("hint.dns"));
   }
   if (isTlsPort(packet)) {
-    hints.push("Le port 443 pointe vers HTTPS, donc handshake TCP puis négociation TLS.");
+    hints.push(t("hint.tls"));
   }
   if ((packet.ttl_or_hop_limit ?? 255) < 40) {
-    hints.push("TTL/Hop faible: le paquet a traversé plusieurs routeurs.");
+    hints.push(t("hint.ttl"));
   }
 
   if (hints.length === 0) {
-    hints.push("Croise protocole, ports, flags et taille pour comprendre la phase réseau.");
+    hints.push(t("hint.default"));
   }
 
   return hints;
@@ -252,8 +253,8 @@ function buildLearningHints(packet) {
 export function renderExplanationEmpty() {
   explanationView.innerHTML = `
     <article class="explain-card empty">
-      <h3>Prêt à analyser</h3>
-      <p>Sélectionne un paquet pour obtenir une explication guidée et contextualisée.</p>
+      <h3>${escapeHtml(t("explain.ready.title"))}</h3>
+      <p>${escapeHtml(t("explain.ready.desc"))}</p>
     </article>
   `;
 }
@@ -273,59 +274,64 @@ export function renderExplanation(packet, _aiRawText = "", _options = {}) {
   const typeText = `${packet.ip_version} / ${packet.protocol}`;
   const ttlText =
     packet.ttl_or_hop_limit === null || packet.ttl_or_hop_limit === undefined
-      ? "non disponible"
+      ? t("table.tip.unavailable")
       : String(packet.ttl_or_hop_limit);
 
   const simpleSummary = [
-    `Ce paquet va de ${packet.source} vers ${packet.destination}.`,
-    `Type observé: ${typeText}.`,
-    `Taille capturée: ${packet.length} octets.`,
-    `Service probable destination: ${serviceNameForPort(destinationPort)}.`,
-    `Lecture rapide flags: ${describeTcpFlags(packet.tcp_flags)}.`,
+    t("explain.summary.flow", { source: packet.source, destination: packet.destination }),
+    t("explain.summary.type", { type: typeText }),
+    t("explain.summary.size", { size: packet.length, unit: t("size.b") }),
+    t("explain.summary.service", { service: serviceNameForPort(destinationPort) }),
+    t("explain.summary.flags", { flags: describeTcpFlags(packet.tcp_flags) }),
   ];
 
   const advancedSummary = [
-    `Trajet complet: ${flowText}`,
+    t("explain.advanced.path", { flow: flowText }),
     `EtherType: ${packet.ethertype}`,
     `TTL/Hop: ${ttlText}`,
-    `Flags TCP bruts: ${formatOptional(packet.tcp_flags)}`,
-    `Info parser: ${packet.info}`,
+    t("explain.advanced.tcp.flags", { flags: formatOptional(packet.tcp_flags) }),
+    t("explain.advanced.info", { info: packet.info }),
     `Hex preview: ${packet.raw_hex}`,
   ];
 
   const protocolList = [
-    `Couche réseau (${packet.ip_version}): ${describeIpLayer(packet.ip_version)}`,
-    `Couche transport (${packet.protocol}): ${describeProtocol(packet.protocol)}`,
-    `Service source (${formatOptional(sourcePort, "?")}): ${serviceNameForPort(sourcePort)}`,
-    `Service destination (${formatOptional(destinationPort, "?")}): ${serviceNameForPort(destinationPort)}`,
-    `Sens: ${
+    t("explain.protocol.network", { version: packet.ip_version, desc: describeIpLayer(packet.ip_version) }),
+    t("explain.protocol.transport", { protocol: packet.protocol, desc: describeProtocol(packet.protocol) }),
+    t("explain.protocol.source", { port: formatOptional(sourcePort, "?"), service: serviceNameForPort(sourcePort) }),
+    t("explain.protocol.destination", {
+      port: formatOptional(destinationPort, "?"),
+      service: serviceNameForPort(destinationPort),
+    }),
+    `${t("explain.protocol.direction")}: ${
       isPrivateIp(packet.source) && !isPrivateIp(packet.destination)
-        ? "sortant (hôte local vers externe)"
+        ? t("explain.direction.outbound")
         : !isPrivateIp(packet.source) && isPrivateIp(packet.destination)
-          ? "entrant (externe vers hôte local)"
-          : "interne/indéterminé"
+          ? t("explain.direction.inbound")
+          : t("explain.direction.internal")
     }`,
   ];
   const layerHeuristics = detectLayerHeuristics(packet);
   const l6Reasons = layerHeuristics.presentation.reasons.length
     ? layerHeuristics.presentation.reasons.join("; ")
-    : "aucun indice fort";
+    : t("explain.no.strong.signal");
   const l5Reasons = layerHeuristics.session.reasons.length
     ? layerHeuristics.session.reasons.join("; ")
-    : "aucun indice fort";
+    : t("explain.no.strong.signal");
   const heuristicList = [
-    `L6 Présentation: ${
+    `${t("explain.heuristic.l6")}: ${
       layerHeuristics.presentation.matched
-        ? `détectée (confiance ${layerHeuristics.presentation.confidence})`
-        : "non détectée"
+        ? `${t("table.tip.detected")} (${t("explain.confidence")} ${layerHeuristics.presentation.confidence})`
+        : t("table.tip.not.detected")
     }`,
-    `Indices L6: ${l6Reasons}`,
-    `Faux positifs L6: ${layerHeuristics.presentation.falsePositiveRisk} — ${layerHeuristics.presentation.falsePositiveNote}`,
-    `L5 Session: ${
-      layerHeuristics.session.matched ? `détectée (confiance ${layerHeuristics.session.confidence})` : "non détectée"
+    `${t("explain.heuristic.l6.signals")}: ${l6Reasons}`,
+    `${t("explain.heuristic.l6.false")}: ${layerHeuristics.presentation.falsePositiveRisk} — ${layerHeuristics.presentation.falsePositiveNote}`,
+    `${t("explain.heuristic.l5")}: ${
+      layerHeuristics.session.matched
+        ? `${t("table.tip.detected")} (${t("explain.confidence")} ${layerHeuristics.session.confidence})`
+        : t("table.tip.not.detected")
     }`,
-    `Indices L5: ${l5Reasons}`,
-    `Faux positifs L5: ${layerHeuristics.session.falsePositiveRisk} — ${layerHeuristics.session.falsePositiveNote}`,
+    `${t("explain.heuristic.l5.signals")}: ${l5Reasons}`,
+    `${t("explain.heuristic.l5.false")}: ${layerHeuristics.session.falsePositiveRisk} — ${layerHeuristics.session.falsePositiveNote}`,
   ];
 
   const pedagogicList = buildLearningHints(packet);
@@ -333,20 +339,20 @@ export function renderExplanation(packet, _aiRawText = "", _options = {}) {
   explanationView.innerHTML = `
     <article class="explain-card explain-card-simple">
       <header class="explain-header">
-        <h3>Paquet #${escapeHtml(packet.id)}</h3>
+        <h3>${escapeHtml(t("explain.packet", { id: packet.id }))}</h3>
         <p>${escapeHtml(packet.timestamp)} • ${escapeHtml(packet.info)}</p>
       </header>
 
       <section class="explain-grid">
         <div class="explain-block">
-          <h4>${isExpert ? "Résumé opératoire" : "Résumé simple"}</h4>
+          <h4>${isExpert ? escapeHtml(t("explain.summary.operational")) : escapeHtml(t("explain.summary.simple"))}</h4>
           <ul class="explain-list">
             ${listItemsToHtml(isExpert ? advancedSummary : simpleSummary)}
           </ul>
         </div>
 
         <div class="explain-block">
-          <h4>Lecture protocolaire</h4>
+          <h4>${escapeHtml(t("explain.protocol.reading"))}</h4>
           <ul class="explain-list">
             ${listItemsToHtml(protocolList)}
           </ul>
@@ -354,22 +360,23 @@ export function renderExplanation(packet, _aiRawText = "", _options = {}) {
       </section>
 
       <div class="explain-block">
-        <h4>Pistes pédagogiques</h4>
+        <h4>${escapeHtml(t("explain.hints"))}</h4>
         <ul class="explain-list">
           ${listItemsToHtml(pedagogicList)}
         </ul>
       </div>
 
       <div class="explain-block">
-        <h4>Détection L5/L6 (heuristique)</h4>
+        <h4>${escapeHtml(t("explain.heuristic.title"))}</h4>
         <ul class="explain-list">
           ${listItemsToHtml(heuristicList)}
         </ul>
       </div>
 
       <p class="oracle-subtext">
-        L'analyse IA détaillée est affichée dans l'assistant flottant (bouton
-        <strong>Assistant IA</strong> dans le header).
+        ${escapeHtml(t("explain.ai.subtext.before"))}
+        <strong>${escapeHtml(t("btn.assistant"))}</strong>
+        ${escapeHtml(t("explain.ai.subtext.after"))}
       </p>
     </article>
   `;

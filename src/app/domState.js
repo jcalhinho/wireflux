@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 export const interfaceSelect = document.getElementById("interfaceSelect");
 export const interfaceGuideText = document.getElementById("interfaceGuideText");
 export const interfaceMetaText = document.getElementById("interfaceMetaText");
@@ -17,8 +19,6 @@ export const packetBody = document.getElementById("packetBody");
 export const explanationView = document.getElementById("explanationView");
 export const coachView = document.getElementById("coachView");
 export const handshakeView = document.getElementById("handshakeView");
-export const storyList = document.getElementById("storyList");
-export const flowMap = document.getElementById("flowMap");
 export const alertList = document.getElementById("alertList");
 
 export const metricPps = document.getElementById("metricPps");
@@ -60,6 +60,7 @@ export const exportPcapBtn = document.getElementById("exportPcapBtn");
 export const exportCsvBtn = document.getElementById("exportCsvBtn");
 export const exportJsonBtn = document.getElementById("exportJsonBtn");
 export const docsBtn = document.getElementById("docsBtn");
+export const langToggleBtn = document.getElementById("langToggleBtn");
 
 export const LAYER_KEYS = Object.freeze([
   "application",
@@ -74,9 +75,6 @@ export const LAYER_KEYS = Object.freeze([
 export const MAX_STORED_PACKETS = 10_000;
 export const MAX_POINTS = 90;
 export const MAX_ALERTS = 80;
-export const MAX_STORY_EVENTS = 180;
-export const MAX_FLOW_ITEMS = 24;
-
 export const SYN_SCAN_WINDOW_MS = 15_000;
 export const SYN_SCAN_PORT_THRESHOLD = 12;
 export const BRUTE_FORCE_WINDOW_MS = 20_000;
@@ -150,6 +148,7 @@ export const SENSITIVE_PORTS = new Set([
 
 export const state = {
   packets: [],
+  packetMap: new Map(),
   selectedPacketId: null,
   selectedConversationKey: null,
   selectedModel: null,
@@ -168,8 +167,6 @@ export const state = {
   timelineHistory: [],
   alerts: [],
   nextAlertId: 1,
-  storyEvents: [],
-  storySeen: new Set(),
   conversations: new Map(),
   synScanState: new Map(),
   bruteForceState: new Map(),
@@ -185,6 +182,7 @@ export const state = {
   allLayersActive: true,
   activeLayers: new Set(),
   profileMode: "auto",
+  lang: "fr",
   quizCorrect: 0,
   quizAnswered: 0,
   coach: {
@@ -221,7 +219,7 @@ export function setStatus(status, message = "") {
   }
 
   const value = message || status || "status";
-  statusText.textContent = `Capture: ${value}`;
+  statusText.textContent = t("status.capture", { value });
   if (normalized === "running") {
     statusText.classList.add("status-running");
   } else if (normalized === "error") {
@@ -233,7 +231,7 @@ export function setAiStatus(text, isError = false) {
   if (!aiStatusText) {
     return;
   }
-  aiStatusText.textContent = `IA: ${text}`;
+  aiStatusText.textContent = t("status.ai", { value: text });
   aiStatusText.classList.toggle("status-error", isError);
 }
 
@@ -260,7 +258,9 @@ export function updateProfileStatus() {
     return;
   }
   const resolved = resolveProfileMode();
-  profileStatusText.textContent = `${state.profileMode} (${resolved})`;
+  const selected = t(`profile.${state.profileMode}`) || state.profileMode;
+  const resolvedLabel = t(`profile.mode.${resolved}`) || resolved;
+  profileStatusText.textContent = t("status.profile", { selected, resolved: resolvedLabel });
 }
 
 export function aiCacheKey(packetId, modelName) {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wireflux | Packet Laboratory</title>
+    <title>Wireflux | Laboratoire Réseau</title>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:wght@400"
@@ -12,344 +12,294 @@
   </head>
   <body>
     <div class="wf-shell">
-      <header class="wf-topbar panel">
-        <div class="wf-topbar-row wf-topbar-row-primary">
-          <div class="wf-branding wf-topbar-title">
-            <h1>Wireflux</h1>
-            <p>Network Capture Lab</p>
-          </div>
 
-          <div class="wf-status-cluster" aria-live="polite">
-            <span id="aiStatusText" class="wf-status-pill">IA: en attente</span>
-            <span id="statusText" class="wf-status-pill hidden">capture</span>
-          </div>
+      <!-- ══════════════════════════════════════════════════
+           Topbar — compact single row
+      ══════════════════════════════════════════════════ -->
+      <header class="wf-topbar">
 
-          <div class="wf-header-actions" aria-label="Actions rapides">
-            <button type="button" class="wf-topbar-btn wf-topbar-btn-primary" id="exportPcapBtn" data-tip="Export PCAP">
-              <span class="material-symbols-outlined">download</span>
-              <span>PCAP</span>
-            </button>
-            <button type="button" class="wf-topbar-btn" id="exportCsvBtn" data-tip="Export CSV">
-              <span class="material-symbols-outlined">table_view</span>
-              <span>CSV</span>
-            </button>
-            <button type="button" class="wf-topbar-btn" id="exportJsonBtn" data-tip="Export JSON">
-              <span class="material-symbols-outlined">data_object</span>
-              <span>JSON</span>
-            </button>
-            <button type="button" class="wf-topbar-btn" id="docsBtn" data-tip="Documentation">
-              <span class="material-symbols-outlined">menu_book</span>
-              <span>Docs</span>
-            </button>
+        <div class="wf-topbar-brand">
+          <span class="wf-brand-mark">WF</span>
+          <div>
+            <strong>Wireflux</strong>
+            <span data-i18n="brand.subtitle">Laboratoire paquets</span>
           </div>
         </div>
 
-        <div class="wf-topbar-row wf-topbar-row-controls">
-          <div class="wf-actions">
-            <label>
-              Interface
-              <select id="interfaceSelect"></select>
-            </label>
-            <label>
-              Modèle IA
-              <select id="modelSelect"></select>
-            </label>
-            <button id="refreshInterfacesBtn" class="ghost" data-tip="Recharge les interfaces disponibles.">
-              Rafraîchir
-            </button>
-            <button id="startBtn" data-tip="Démarre la capture de paquets.">Start Capture</button>
-            <button id="stopBtn" disabled data-tip="Stoppe la capture.">Stop</button>
-            <button
-              id="aiChatToggleBtn"
-              class="ghost"
-              type="button"
-              aria-expanded="false"
-              data-tip="Ouvre ou réduit l'assistant IA flottant."
-            >
-              Assistant IA
-            </button>
-            <div class="wf-interface-edu">
-              <strong>Point d'entrée capture: couche 1 -> couche 2</strong>
-              <p id="interfaceGuideText">
-                Choisis l'interface materielle observee (Wi-Fi, Ethernet, loopback, VPN) pour definir la source de
-                capture.
-              </p>
-              <p id="interfaceMetaText">Aucune interface sélectionnée.</p>
-            </div>
-          </div>
+        <div class="wf-topbar-divider"></div>
 
-          <div class="wf-engine-controls" aria-label="Choix engine heuristics">
-            <span class="wf-engine-label">Engine</span>
-            <label class="wf-engine-pill">
-              <input id="ruleSynScan" type="checkbox" checked />
-              <span>Scan SYN</span>
-            </label>
-            <label class="wf-engine-pill">
-              <input id="ruleBruteforce" type="checkbox" checked />
-              <span>Brute-force</span>
-            </label>
-            <label class="wf-engine-pill">
-              <input id="ruleBeaconing" type="checkbox" checked />
-              <span>Beaconing</span>
-            </label>
-            <label class="wf-engine-pill">
-              <input id="ruleExfil" type="checkbox" checked />
-              <span>Exfil burst</span>
-            </label>
-          </div>
+        <div class="wf-topbar-selects">
+          <label>
+            <span data-i18n="lbl.interface">Interface</span>
+            <select id="interfaceSelect"></select>
+          </label>
+          <label>
+            <span data-i18n="lbl.model">Modèle IA</span>
+            <select id="modelSelect"></select>
+          </label>
+          <label>
+            <span data-i18n="lbl.profile">Profil</span>
+            <select id="profileSelect">
+              <option value="auto" data-i18n="profile.auto">auto</option>
+              <option value="beginner" data-i18n="profile.beginner">débutant</option>
+              <option value="expert" data-i18n="profile.expert">expert</option>
+            </select>
+          </label>
+          <span id="interfaceMetaText" class="wf-interface-meta" data-i18n="interface.none.selected">Aucune interface sélectionnée.</span>
+          <span id="interfaceGuideText"></span>
         </div>
+
+        <div class="wf-topbar-divider"></div>
+
+        <div class="wf-engine-controls" aria-label="Heuristics engine" data-i18n-aria="engine.aria">
+          <span class="wf-engine-label" data-i18n="lbl.engine">Moteur</span>
+          <label class="wf-engine-pill">
+            <input id="ruleSynScan" type="checkbox" checked />
+            <span>SYN</span>
+          </label>
+          <label class="wf-engine-pill">
+            <input id="ruleBruteforce" type="checkbox" checked />
+            <span>Brute</span>
+          </label>
+          <label class="wf-engine-pill">
+            <input id="ruleBeaconing" type="checkbox" checked />
+            <span>Beacon</span>
+          </label>
+          <label class="wf-engine-pill">
+            <input id="ruleExfil" type="checkbox" checked />
+            <span>Exfil</span>
+          </label>
+        </div>
+
+        <div class="wf-topbar-actions" aria-label="Actions" data-i18n-aria="actions.aria">
+          <button type="button" id="langToggleBtn" class="ghost wf-topbar-btn" data-tip="Change language" data-i18n-tip="tip.lang.toggle">
+            <span data-i18n="lang.toggle">EN</span>
+          </button>
+          <button type="button" id="refreshInterfacesBtn" class="ghost wf-topbar-btn" data-tip="Refresh interfaces" data-i18n-tip="tip.interfaces.refresh">
+            <span class="material-symbols-outlined">refresh</span>
+          </button>
+          <button type="button" id="startBtn" class="wf-topbar-btn wf-topbar-btn-primary" data-tip="Start packet capture" data-i18n-tip="tip.capture.start">
+            <span class="material-symbols-outlined">play_arrow</span>
+            <span data-i18n="btn.start">Démarrer</span>
+          </button>
+          <button type="button" id="stopBtn" disabled class="wf-topbar-btn" data-tip="Stop capture" data-i18n-tip="tip.capture.stop">
+            <span class="material-symbols-outlined">stop</span>
+            <span data-i18n="btn.stop">Stop</span>
+          </button>
+          <button type="button" id="aiChatToggleBtn" class="ghost wf-topbar-btn" aria-expanded="false" data-tip="Toggle AI assistant" data-i18n-tip="tip.assistant.toggle">
+            <span class="material-symbols-outlined">smart_toy</span>
+          </button>
+          <button type="button" id="exportPcapBtn" class="ghost wf-topbar-btn" data-tip="Export PCAP">
+            <span class="material-symbols-outlined">download</span>
+            <span>PCAP</span>
+          </button>
+          <button type="button" id="exportCsvBtn" class="ghost wf-topbar-btn" data-tip="Export CSV">
+            <span class="material-symbols-outlined">table_view</span>
+          </button>
+          <button type="button" id="exportJsonBtn" class="ghost wf-topbar-btn" data-tip="Export JSON">
+            <span class="material-symbols-outlined">data_object</span>
+          </button>
+          <button type="button" id="docsBtn" class="ghost wf-topbar-btn" data-tip="Documentation">
+            <span class="material-symbols-outlined">menu_book</span>
+          </button>
+        </div>
+
       </header>
 
-      <main class="wf-main wf-main-learning">
-        <section class="panel wf-learning-hero" id="panelOverview">
-          <div class="panel-header">
-            <h3>Mission 0 · Tableau de Bord Pédagogique</h3>
-            <div class="panel-header-actions">
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
-              </button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <p class="wf-learning-kicker">Mode laboratoire pédagogique</p>
-            <h2>Observe, comprends, puis vérifie</h2>
-            <p>
-              Chaque bloc est rétractable, plein format et synchronisé: les clics dans les flux pilotent la table,
-              l'explication IA et le handshake decoder.
-            </p>
-            <div class="wf-learning-columns">
-              <article>
-                <strong>1. Observe</strong>
-                <p>Repère les variations de trafic en direct.</p>
-              </article>
-              <article>
-                <strong>2. Relie</strong>
-                <p>Clique un flux pour suivre une conversation.</p>
-              </article>
-              <article>
-                <strong>3. Explique</strong>
-                <p>Lis l'analyse protocolaire et sécurité guidée.</p>
-              </article>
-            </div>
-          </div>
-        </section>
+      <!-- ══════════════════════════════════════════════════
+           2-column workspace
+      ══════════════════════════════════════════════════ -->
+      <div class="wf-workspace">
 
-        <section class="panel live" id="panelLive">
-          <div class="panel-header">
-            <h3>
-              Mission 1 · Vue Live
-              <span class="hint" data-tip="Débit instantané en paquets et octets.">?</span>
-            </h3>
-            <div class="panel-header-actions">
-              <button id="openGraphBtn" class="ghost" data-tip="Ouvre un graphe détaillé.">Graphe détaillé</button>
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
-              </button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="live-guide">
-              <p>Commence ici pour repérer les pics, puis descends vers les flux et paquets concernés.</p>
-            </div>
-            <div class="live-toolbar">
-              <div class="live-metrics">
-                <span id="metricPps">0 pkt/s</span>
-                <span id="metricBps">0 B/s</span>
-                <span id="metricTotal">0 paquets</span>
+        <!-- Left column: live + packets + flow map -->
+        <div class="wf-left">
+
+          <!-- Mission 1 · Vue Live -->
+          <section class="panel live" id="panelLive">
+            <div class="panel-header">
+              <h3>
+                <span data-i18n="panel.live">Vue Live</span>
+                <span class="hint" data-tip="Instant throughput in packets and bytes." data-i18n-tip="tip.metric.live">?</span>
+              </h3>
+              <div class="panel-header-actions">
+                <div class="live-metrics" aria-live="polite">
+                  <span id="metricPps">0 pkt/s</span>
+                  <span id="metricBps">0 B/s</span>
+                  <span id="metricTotal">0 paquets</span>
+                </div>
+                <button id="openGraphBtn" class="ghost" data-tip="Open detailed graph" data-i18n-tip="tip.graph.open">
+                  <span class="material-symbols-outlined">open_in_full</span>
+                </button>
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Expand"
+                  data-label-collapse="Collapse"
+                  data-tip="Collapse or expand this panel."
+                  data-i18n-tip="tip.panel.toggle"
+                  aria-expanded="true"
+                >
+                  Collapse
+                </button>
               </div>
             </div>
-            <div id="trafficChartMini" class="traffic-chart-mini" aria-label="Mini graphe trafic"></div>
-          </div>
-        </section>
-
-        <section class="panel flow-map" id="panelFlowMap">
-          <div class="panel-header">
-            <h3>Mission 2 · Flow Map Interactive</h3>
-            <div class="panel-header-actions">
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
-              </button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="flow-guide">
-              <strong>Objectif</strong>
-              <p>
-                Sélectionne un flux pour synchroniser automatiquement l’analyse du paquet, le handshake et l’explication
-                protocolaire.
-              </p>
-              <p class="flow-guide-what">
-                Cliquer un item de la flow map sert à filtrer l'histoire réseau sur cette conversation précise.
-              </p>
-            </div>
-            <div id="flowMap" class="flow-map-list"></div>
-          </div>
-        </section>
-
-        <section class="panel packets" id="panelPackets">
-          <div class="panel-header">
-            <h3>
-              Mission 3 · Packet Stream
-              <span class="hint" data-tip="Tableau des paquets capturés, tri visuel par protocole.">?</span>
-            </h3>
-            <div class="panel-header-actions">
-              <input
-                type="search"
-                id="packetFilterInput"
-                class="packet-filter"
-                placeholder="Filtrer IP / port / proto"
-                aria-label="Filtrer les paquets"
-              />
-              <label class="rows-select">
-                Lignes
-                <select id="pageSizeSelect" aria-label="Lignes par page">
-                  <option value="10">10</option>
-                  <option value="20" selected>20</option>
-                  <option value="40">40</option>
-                </select>
-              </label>
-              <div class="table-pager" aria-label="Pagination capture">
-                <button id="prevPageBtn" class="ghost" data-tip="Page précédente.">◀</button>
-                <span id="pageText">Page 1 / 1</span>
-                <button id="nextPageBtn" class="ghost" data-tip="Page suivante.">▶</button>
+            <div class="panel-body">
+              <div class="live-guide">
+                <p data-i18n="live.guide.desc">Repère les pics de trafic, puis descends vers les flux et paquets concernés.</p>
               </div>
-              <span id="pageSummary" class="page-summary">0 affichés</span>
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
+              <div id="trafficChartMini" class="traffic-chart-mini" aria-label="Mini traffic graph" data-i18n-aria="graph.mini.aria"></div>
+            </div>
+          </section>
+
+          <!-- Mission 3 · Packet Stream -->
+          <section class="panel packets" id="panelPackets">
+            <div class="panel-header">
+              <h3>
+                <span data-i18n="panel.packets">Flux Paquets</span>
+                <span class="hint" data-tip="Captured packets table with OSI-layer visual grouping." data-i18n-tip="tip.table.osi">?</span>
+              </h3>
+              <div class="panel-header-actions">
+                <input
+                  type="search"
+                  id="packetFilterInput"
+                  class="packet-filter"
+                  placeholder="Filtrer IP / port / proto"
+                  data-i18n-ph="ph.filter"
+                  aria-label="Filter packets"
+                  data-i18n-aria="input.filter.aria"
+                />
+                <label class="rows-select">
+                  <span data-i18n="lbl.rows">Lignes</span>
+                  <select id="pageSizeSelect" aria-label="Rows per page" data-i18n-aria="input.rows.aria">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="40">40</option>
+                  </select>
+                </label>
+                <div class="table-pager" aria-label="Capture pagination" data-i18n-aria="pager.aria">
+                  <button id="prevPageBtn" class="ghost" data-tip="Previous page" data-i18n-tip="tip.page.prev">◀</button>
+                  <span id="pageText">1 / 1</span>
+                  <button id="nextPageBtn" class="ghost" data-tip="Next page" data-i18n-tip="tip.page.next">▶</button>
+                </div>
+                <span id="pageSummary" class="page-summary">0</span>
+                <button
+                  type="button"
+                  class="ghost panel-toggle"
+                  data-panel-toggle
+                  data-label-expand="Expand"
+                  data-label-collapse="Collapse"
+                  data-tip="Collapse or expand this panel."
+                  data-i18n-tip="tip.panel.toggle"
+                  aria-expanded="true"
+                >
+                  Collapse
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th data-i18n="th.time">Heure</th>
+                      <th data-i18n="th.source">Source</th>
+                      <th data-i18n="th.dest">Destination</th>
+                      <th data-i18n="th.proto">Proto</th>
+                      <th data-i18n="th.stage">Étape</th>
+                      <th data-i18n="th.size">Taille</th>
+                    </tr>
+                  </thead>
+                  <tbody id="packetBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /.wf-left -->
+
+        <!-- Right column: tabbed analysis panel -->
+        <div class="wf-right">
+          <div class="wf-analysis-panel">
+
+            <div class="wf-tab-bar" role="tablist" aria-label="Panneau d'analyse" data-i18n-aria="tab.analysis">
+              <button class="wf-tab-btn is-active" data-tab="oracle" role="tab" aria-selected="true" data-i18n="tab.oracle">Oracle</button>
+              <button class="wf-tab-btn" data-tab="handshake" role="tab" aria-selected="false" data-i18n="tab.handshake">Handshake</button>
+              <button class="wf-tab-btn" data-tab="alerts" role="tab" aria-selected="false">
+                <span data-i18n="tab.alerts">Alertes</span>
+                <span
+                  id="alertCountBadge"
+                  class="alert-count-badge hidden"
+                  aria-label="Number of active alerts"
+                  data-i18n-aria="badge.alerts.aria"
+                ></span>
               </button>
             </div>
-          </div>
-          <div class="panel-body">
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Heure</th>
-                    <th>Source</th>
-                    <th>Destination</th>
-                    <th>Proto</th>
-                    <th>Story Session</th>
-                    <th>Taille</th>
-                  </tr>
-                </thead>
-                <tbody id="packetBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
 
-        <section class="panel explain" id="panelExplain">
-          <div class="panel-header">
-            <h3>
-              Mission 4 · AI Protocol Oracle
-              <span class="hint" data-tip="Explication IA + décodeur handshake pour le paquet sélectionné.">?</span>
-            </h3>
-            <div class="panel-header-actions">
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
-              </button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="oracle-guide">
-              <strong>Objectif</strong>
-              <p>Décoder le paquet actif, expliquer L3/L4 et visualiser la progression du handshake.</p>
-            </div>
-            <div id="explanationView" class="explanation-view">
-              <article class="explain-card empty">
-                <h4>Prêt à analyser</h4>
-                <p>Sélectionne un paquet dans le tableau pour obtenir une explication guidée.</p>
-              </article>
-            </div>
+            <div class="wf-tab-panels">
 
-            <h4 class="subpanel-title">Handshake Decoder</h4>
-            <p class="oracle-subtext">
-              Lecture visuelle explicative des étapes TCP/TLS: rôle de chaque paquet, état du handshake, et impact
-              diagnostic.
-            </p>
-            <div id="handshakeView" class="handshake-view"></div>
-          </div>
-        </section>
+              <!-- Tab: Oracle (AI explanation) -->
+              <div class="wf-tab-panel is-active" data-tab-panel="oracle" role="tabpanel">
+                <div class="oracle-guide">
+                  <strong data-i18n="oracle.title">Oracle protocolaire</strong>
+                  <p data-i18n="oracle.desc">Décoder le paquet actif, expliquer L3/L4 et visualiser la progression du handshake.</p>
+                </div>
+                <div id="explanationView" class="explanation-view">
+                  <article class="explain-card empty">
+                    <h4 data-i18n="explain.ready.title">Prêt à analyser</h4>
+                    <p data-i18n="explain.ready.desc">Sélectionne un paquet dans le tableau pour obtenir une explication guidée.</p>
+                  </article>
+                </div>
+                <div id="coachView" class="hidden"></div>
+              </div>
 
-        <section class="panel alerts" id="panelAlerts">
-          <div class="panel-header">
-            <h3>
-              Mission 5 · Alertes Sécurité
-              <span id="alertCountBadge" class="alert-count-badge hidden" aria-label="Nombre d'alertes actives"></span>
-            </h3>
-            <div class="panel-header-actions">
-              <button
-                type="button"
-                class="ghost panel-toggle"
-                data-panel-toggle
-                data-label-expand="Déplier"
-                data-label-collapse="Réduire"
-                data-tip="Rétracte ou déplie ce panneau."
-                aria-expanded="true"
-              >
-                Réduire
-              </button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="alert-guide">
-              <strong>Objectif</strong>
-              <p>Anomalies auto-détectées: scan, brute-force, beaconing et exfiltration.</p>
-            </div>
-            <ul id="alertList" class="alert-list">
-              <li class="alert-empty">Aucune alerte pour le moment.</li>
-            </ul>
-          </div>
-        </section>
-      </main>
-    </div>
+              <!-- Tab: Handshake decoder -->
+              <div class="wf-tab-panel" data-tab-panel="handshake" role="tabpanel">
+                <div class="handshake-guide">
+                  <strong data-i18n="handshake.title">Décodeur Handshake</strong>
+                  <p data-i18n="handshake.desc">Lecture visuelle des étapes TCP/TLS: rôle de chaque paquet, état et impact diagnostic.</p>
+                </div>
+                <div id="handshakeView" class="handshake-view"></div>
+              </div>
 
-    <aside id="aiChatWidget" class="ai-chat-widget hidden" aria-live="polite" aria-label="Assistant IA flottant">
-      <div class="ai-chat-head">
-        <strong>Assistant IA</strong>
-        <button id="aiChatCloseBtn" type="button" class="ghost" aria-label="Réduire assistant IA">Réduire</button>
-      </div>
+              <!-- Tab: Alerts -->
+              <div class="wf-tab-panel" data-tab-panel="alerts" role="tabpanel">
+                <div class="alert-guide">
+                  <strong data-i18n="alerts.title">Alertes Sécurité</strong>
+                  <p data-i18n="alerts.desc">Anomalies auto-détectées: scan SYN, brute-force, beaconing et exfiltration.</p>
+                </div>
+                <ul id="alertList" class="alert-list">
+                  <li class="alert-empty" data-i18n="alerts.empty">Aucune alerte pour le moment.</li>
+                </ul>
+              </div>
+
+            </div><!-- /.wf-tab-panels -->
+          </div><!-- /.wf-analysis-panel -->
+        </div><!-- /.wf-right -->
+
+      </div><!-- /.wf-workspace -->
+
+      <!-- ══════════════════════════════════════════════════
+           Status bar
+      ══════════════════════════════════════════════════ -->
+      <footer class="wf-statusbar" aria-live="polite">
+        <span id="aiStatusText" class="wf-status-pill" data-i18n="status.ai.waiting">IA: en attente</span>
+        <span id="statusText" class="wf-status-pill hidden">capture</span>
+        <span class="wf-statusbar-sep"></span>
+        <span id="profileStatusText" class="wf-status-pill"></span>
+      </footer>
+
+    </div><!-- /.wf-shell -->
+
+    <!-- ══════════════════════════════════════════════════
+         Floating AI Chat Widget
+    ══════════════════════════════════════════════════ -->
+      <aside id="aiChatWidget" class="ai-chat-widget hidden" aria-live="polite" aria-label="Assistant IA flottant" data-i18n-aria="ai.title">
+        <div class="ai-chat-head">
+          <strong data-i18n="ai.title">Assistant IA</strong>
+          <button id="aiChatCloseBtn" type="button" class="ghost" aria-label="Réduire assistant IA" data-i18n-aria="btn.ai.minimize" data-i18n="btn.ai.minimize">Réduire</button>
+        </div>
       <div id="aiChatMessages" class="ai-chat-messages"></div>
       <div class="ai-chat-foot">
         <form id="aiChatForm" class="ai-chat-form">
@@ -359,21 +309,28 @@
             maxlength="900"
             autocomplete="off"
             placeholder="Pose une question à l'IA..."
+            data-i18n-ph="ph.chat"
             aria-label="Question IA"
+            data-i18n-aria="ph.chat"
           />
-          <button id="aiChatSendBtn" type="submit">Envoyer</button>
+          <button id="aiChatSendBtn" type="submit">
+            <span class="material-symbols-outlined">send</span>
+          </button>
         </form>
-        <button id="aiChatClearBtn" type="button" class="ghost">Effacer</button>
+        <button id="aiChatClearBtn" type="button" class="ghost" data-i18n="btn.ai.clear">Effacer</button>
       </div>
     </aside>
 
+    <!-- ══════════════════════════════════════════════════
+         Graph modal
+    ══════════════════════════════════════════════════ -->
     <div id="graphModal" class="graph-modal hidden" aria-hidden="true">
       <div class="graph-modal-card">
         <div class="graph-modal-header">
-          <h3>Graphe Trafic (tranches de paquets)</h3>
-          <button id="closeGraphBtn" class="ghost">Fermer</button>
+          <h3 data-i18n="panel.graph">Graphe Trafic</h3>
+          <button id="closeGraphBtn" class="ghost" data-i18n="btn.close">Fermer</button>
         </div>
-        <div id="trafficChartLarge" class="traffic-chart-large" aria-label="Graphe détaillé"></div>
+        <div id="trafficChartLarge" class="traffic-chart-large" aria-label="Detailed graph" data-i18n-aria="graph.large.aria"></div>
       </div>
     </div>
 

@@ -18,7 +18,7 @@ import {
   stopBtn,
   updateProfileStatus,
 } from "./app/domState.js";
-import { resetAlertState } from "./app/alerts.js";
+import { renderAlerts, resetAlertState } from "./app/alerts.js";
 import { closeGraphModal, openGraphModal, updateCharts, updateMetricsUi } from "./app/charts.js";
 import {
   handleCaptureStatus,
@@ -34,12 +34,13 @@ import {
   stopCapture,
   updateInterfaceEducation,
 } from "./app/capture.js";
-import { renderExplanation, renderExplanationEmpty, setExplainHooks } from "./app/explainCoach.js";
+import { renderCoach, renderExplanation, renderExplanationEmpty, setExplainHooks } from "./app/explainCoach.js";
 import { initFloatingAiChat, resetFloatingAiChat } from "./app/floatingAiChat.js";
+import { applyLang, t } from "./app/i18n.js";
 import { renderHandshakeDecoder, setHandshakeHooks } from "./app/handshakeView.js";
-import { renderFlowMap, renderStoryList, setStoryFlowHooks } from "./app/storyFlow.js";
 import { findPacketById, renderTablePage, setTableHooks, totalPages } from "./app/tableView.js";
 import {
+  bindAnalysisTabs,
   bindLayerNavigation,
   bindPanelToggles,
   bindRulesEvents,
@@ -52,15 +53,12 @@ import { aiCacheKey } from "./app/domState.js";
 
 async function init() {
   setTableHooks({ onPacketSelect: selectPacket });
-  setStoryFlowHooks({ onPacketSelect: selectPacket, findPacketById });
   setHandshakeHooks({ onPacketSelect: selectPacket, findPacketById });
   setExplainHooks({ findPacketById });
   setUiHooks({
     onLivePanelExpanded: () => state.miniChart?.resize(),
     onLayerChange: () => {
       renderTablePage();
-      renderFlowMap();
-      renderStoryList();
       renderHandshakeDecoder();
       updateCharts();
     },
@@ -79,17 +77,41 @@ async function init() {
   });
 
   initTooltipSystem();
+  bindAnalysisTabs();
   bindRulesEvents();
   bindPanelToggles();
   bindSidenavToggle();
   bindLayerNavigation();
   initFloatingAiChat();
   syncRulesFromUi();
+  applyLang(state.lang);
+
+  const langToggleBtn = document.getElementById("langToggleBtn");
+  if (langToggleBtn) {
+    langToggleBtn.addEventListener("click", () => {
+      state.lang = state.lang === "fr" ? "en" : "fr";
+      applyLang(state.lang);
+      updateInterfaceEducation();
+      renderTablePage();
+      renderHandshakeDecoder();
+      renderAlerts();
+      updateProfileStatus();
+      renderCoach();
+      const packet = state.selectedPacketId ? findPacketById(state.selectedPacketId) : null;
+      if (packet) {
+        const key = aiCacheKey(packet.id, state.selectedModel);
+        renderExplanation(packet, state.aiCache.get(key) || "", {
+          aiError: state.aiErrorCache.get(key) || "",
+        });
+      } else {
+        renderExplanationEmpty();
+      }
+      updateMetricsUi(state.ppsHistory.at(-1) || 0, state.bpsHistory.at(-1) || 0);
+    });
+  }
 
   renderTablePage();
   renderExplanationEmpty();
-  renderStoryList();
-  renderFlowMap();
   renderHandshakeDecoder();
   resetFloatingAiChat();
   resetAlertState();
@@ -121,9 +143,9 @@ async function init() {
   modelSelect.addEventListener("change", () => {
     state.selectedModel = modelSelect.value || null;
     if (state.selectedModel) {
-      setAiStatus(`connectée (${state.selectedModel})`);
+      setAiStatus(t("status.ai.connected.model", { model: state.selectedModel }));
     } else {
-      setAiStatus("sélection de modèle requise", true);
+      setAiStatus(t("status.model.required"), true);
     }
     reselectCurrentPacket();
   });
@@ -206,7 +228,7 @@ async function init() {
 
   await loadInterfaces();
   setStatus("idle");
-  setAiStatus("vérification...");
+  setAiStatus(t("status.connecting"));
   await refreshAiStatus();
   updateMetricsUi(0, 0);
   updateCharts();
@@ -214,5 +236,5 @@ async function init() {
 
 init().catch((error) => {
   setStatus("error", String(error));
-  setAiStatus("erreur init", true);
+  setAiStatus(t("status.init.error"), true);
 });

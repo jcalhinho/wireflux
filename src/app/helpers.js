@@ -1,4 +1,5 @@
 import { KNOWN_PORTS, LAYER_KEYS, state } from "./domState.js";
+import { getLang, t } from "./i18n.js";
 
 const APPLICATION_PORTS = new Set([
   20, 21, 22, 25, 53, 80, 110, 123, 143, 443, 587, 993, 995, 3306, 5432, 6379, 8080, 8443,
@@ -52,9 +53,9 @@ export function formatOptional(value, fallback = "-") {
 
 export function serviceNameForPort(port) {
   if (port === null || port === undefined) {
-    return "port non défini";
+    return t("service.port.undefined");
   }
-  return KNOWN_PORTS.get(port) || "service non identifié";
+  return KNOWN_PORTS.get(port) || t("service.unknown");
 }
 
 export function parseTimestampValue(timestampText) {
@@ -63,7 +64,7 @@ export function parseTimestampValue(timestampText) {
 }
 
 export function safeToLocaleTime(timestampMs) {
-  return new Date(timestampMs).toLocaleTimeString("fr-FR", {
+  return new Date(timestampMs).toLocaleTimeString(getLang() === "en" ? "en-US" : "fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -159,28 +160,28 @@ export function resolvePacketLayers(packet) {
 
 function confidenceFromScore(score) {
   if (score >= 5) {
-    return "élevée";
+    return t("heuristic.confidence.high");
   }
   if (score >= 3) {
-    return "moyenne";
+    return t("heuristic.confidence.medium");
   }
   if (score >= 1) {
-    return "faible";
+    return t("heuristic.confidence.low");
   }
-  return "nulle";
+  return t("heuristic.confidence.none");
 }
 
 function falsePositiveRiskForEvidence(evidenceKinds) {
   if (evidenceKinds.size === 0) {
-    return "élevé";
+    return t("heuristic.risk.high");
   }
   if (evidenceKinds.size === 1 && evidenceKinds.has("port")) {
-    return "élevé";
+    return t("heuristic.risk.high");
   }
   if (evidenceKinds.has("port") && !evidenceKinds.has("payload")) {
-    return "moyen";
+    return t("heuristic.risk.medium");
   }
-  return "faible";
+  return t("heuristic.risk.low");
 }
 
 function detectPresentationLayer(packet) {
@@ -197,36 +198,36 @@ function detectPresentationLayer(packet) {
   if (hasTlsRecord) {
     score += 3;
     evidenceKinds.add("payload");
-    reasons.push("signature TLS visible dans la charge utile");
+    reasons.push(t("heuristic.presentation.reason.tls_payload"));
   }
 
   if (/tls|ssl|certificate|client hello|server hello|alpn|http\/2|http\/3|quic/.test(info)) {
     score += 2;
     evidenceKinds.add("metadata");
-    reasons.push("métadonnée protocolaire compatible chiffrement/encodage");
+    reasons.push(t("heuristic.presentation.reason.meta"));
   }
 
   if (PRESENTATION_HINT_PORTS.has(srcPort) || PRESENTATION_HINT_PORTS.has(dstPort)) {
     score += 1;
     evidenceKinds.add("port");
-    reasons.push("port fréquemment lié à TLS/chiffrement");
+    reasons.push(t("heuristic.presentation.reason.port"));
   }
 
   if (proto === "UDP" && (srcPort === 443 || dstPort === 443) && /quic|http\/3/.test(info)) {
     score += 2;
     evidenceKinds.add("metadata");
-    reasons.push("indice QUIC/HTTP3 (chiffrement applicatif)");
+    reasons.push(t("heuristic.presentation.reason.quic"));
   }
 
   const matched = score >= 3;
   const confidence = confidenceFromScore(score);
   const falsePositiveRisk = falsePositiveRiskForEvidence(evidenceKinds);
   const falsePositiveNote =
-    falsePositiveRisk === "élevé"
-      ? "Risque élevé: corrélation surtout basée sur le port, sans preuve forte dans le payload."
-      : falsePositiveRisk === "moyen"
-        ? "Risque moyen: plusieurs indices existent, mais absence de signature payload explicite."
-        : "Risque faible: indices multi-sources (payload + métadonnées) cohérents.";
+    falsePositiveRisk === t("heuristic.risk.high")
+      ? t("heuristic.presentation.note.high")
+      : falsePositiveRisk === t("heuristic.risk.medium")
+        ? t("heuristic.presentation.note.medium")
+        : t("heuristic.presentation.note.low");
 
   return {
     matched,
@@ -253,47 +254,47 @@ function detectSessionLayer(packet) {
     if (flags.has("SYN") && !flags.has("ACK")) {
       score += 3;
       evidenceKinds.add("state");
-      reasons.push("ouverture de session TCP (SYN)");
+      reasons.push(t("heuristic.session.reason.syn"));
     } else if (flags.has("SYN") && flags.has("ACK")) {
       score += 3;
       evidenceKinds.add("state");
-      reasons.push("réponse handshake TCP (SYN-ACK)");
+      reasons.push(t("heuristic.session.reason.synack"));
     }
 
     if (flags.has("FIN") || flags.has("RST")) {
       score += 3;
       evidenceKinds.add("state");
-      reasons.push("fermeture/réinitialisation de session TCP");
+      reasons.push(t("heuristic.session.reason.finrst"));
     }
 
     if (flags.has("ACK") && !flags.has("PSH") && payloadLen <= 90) {
       score += 1;
       evidenceKinds.add("state");
-      reasons.push("paquet ACK court compatible keep-alive/maintenance de session");
+      reasons.push(t("heuristic.session.reason.ack"));
     }
   }
 
   if (/session|handshake|keep-?alive|resume|renegotiation|ticket/.test(info)) {
     score += 2;
     evidenceKinds.add("metadata");
-    reasons.push("métadonnée évoquant une gestion d'état de session");
+    reasons.push(t("heuristic.session.reason.meta"));
   }
 
   if (proto === "UDP" && (srcPort === 443 || dstPort === 443) && /quic/.test(info)) {
     score += 2;
     evidenceKinds.add("metadata");
-    reasons.push("QUIC implique une gestion de session au-dessus d'UDP");
+    reasons.push(t("heuristic.session.reason.quic"));
   }
 
   const matched = score >= 3;
   const confidence = confidenceFromScore(score);
   const falsePositiveRisk = falsePositiveRiskForEvidence(evidenceKinds);
   const falsePositiveNote =
-    falsePositiveRisk === "élevé"
-      ? "Risque élevé: peu d'indices d'état, interprétation fragile."
-      : falsePositiveRisk === "moyen"
-        ? "Risque moyen: indices de session présents mais partiels."
-        : "Risque faible: transitions d'état session clairement observées.";
+    falsePositiveRisk === t("heuristic.risk.high")
+      ? t("heuristic.session.note.high")
+      : falsePositiveRisk === t("heuristic.risk.medium")
+        ? t("heuristic.session.note.medium")
+        : t("heuristic.session.note.low");
 
   return {
     matched,
@@ -369,17 +370,17 @@ export function isLikelyDataPacket(packet) {
 export function describeProtocol(protocol) {
   switch (String(protocol || "").toUpperCase()) {
     case "TCP":
-      return "Transport fiable orienté connexion: ordre, ACK, retransmission.";
+      return t("protocol.desc.tcp");
     case "UDP":
-      return "Transport rapide sans connexion: utile pour DNS, VoIP, streaming.";
+      return t("protocol.desc.udp");
     case "ICMP":
-      return "Contrôle/routage IPv4: diagnostic (ping), erreurs réseau.";
+      return t("protocol.desc.icmp");
     case "ICMPV6":
-      return "Contrôle IPv6: voisinage, erreurs, signalisation réseau.";
+      return t("protocol.desc.icmpv6");
     case "ARP":
-      return "Résolution IP -> MAC sur le LAN (couche liaison).";
+      return t("protocol.desc.arp");
     default:
-      return "Protocole de transport ou couche liaison détecté.";
+      return t("protocol.desc.default");
   }
 }
 
@@ -491,37 +492,37 @@ export function getLayerFilteredPackets() {
 export function describeIpLayer(ipVersion) {
   switch (String(ipVersion || "").toUpperCase()) {
     case "IPV4":
-      return "Adressage 32 bits, encore majoritaire sur Internet.";
+      return t("ip.desc.ipv4");
     case "IPV6":
-      return "Adressage 128 bits, conçu pour l'extension d'Internet.";
+      return t("ip.desc.ipv6");
     case "ARP":
-      return "Découverte d'adresse MAC à partir de l'IP locale.";
+      return t("ip.desc.arp");
     default:
-      return "Couche réseau/liaison détectée.";
+      return t("ip.desc.default");
   }
 }
 
 export function describeTcpFlags(flagsText) {
   const flags = parseTcpFlags(flagsText);
   if (flags.size === 0) {
-    return "Aucun flag TCP notable";
+    return t("tcp.flags.none");
   }
 
   const details = [];
   if (flags.has("SYN")) {
-    details.push("SYN: ouverture de connexion");
+    details.push(t("tcp.flags.syn"));
   }
   if (flags.has("ACK")) {
-    details.push("ACK: accusé de réception");
+    details.push(t("tcp.flags.ack"));
   }
   if (flags.has("PSH")) {
-    details.push("PSH: livraison immédiate appli");
+    details.push(t("tcp.flags.psh"));
   }
   if (flags.has("RST")) {
-    details.push("RST: reset de connexion");
+    details.push(t("tcp.flags.rst"));
   }
   if (flags.has("FIN")) {
-    details.push("FIN: fermeture propre");
+    details.push(t("tcp.flags.fin"));
   }
 
   return details.join(" | ");
@@ -535,7 +536,7 @@ export function parseAiResponse(rawText) {
   const text = String(rawText || "").trim();
   if (!text) {
     return {
-      source: "vide",
+      source: "empty",
       body: "",
       diagnostics: [],
     };
@@ -553,14 +554,14 @@ export function parseAiResponse(rawText) {
     }
   } catch {
     return {
-      source: "texte",
+      source: "text",
       body: text,
       diagnostics: [],
     };
   }
 
   return {
-    source: "texte",
+    source: "text",
     body: text,
     diagnostics: [],
   };

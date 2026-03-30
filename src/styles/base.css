@@ -1,38 +1,38 @@
 :root {
-  color-scheme: light;
-  --bg: #f7f9fb;
-  --bg-elevated: #ffffff;
-  --panel: rgba(255, 255, 255, 0.78);
-  --panel-strong: #ffffff;
-  --text: #191c1e;
-  --muted: #5f6678;
-  --primary: #0056c5;
-  --primary-soft: #d9e2ff;
-  --secondary: #6b38d4;
-  --tertiary: #0f8b72;
-  --danger: #ba1a1a;
-  --warning: #b36f00;
-  --ok: #0d8b60;
-  --border: #d7dde8;
-  --border-strong: #c2c9d8;
-  --shadow-soft: 0 12px 32px rgba(20, 38, 64, 0.08);
-  --shadow-card: 0 20px 42px rgba(16, 40, 70, 0.1);
+  color-scheme: dark;
+  --bg: #12151c;
+  --bg-elevated: #1c2028;
+  --panel: rgba(30, 34, 44, 0.94);
+  --panel-strong: #242830;
+  --text: #dde6f5;
+  --muted: #7e8ca8;
+  --primary: #5ba8ff;
+  --primary-soft: rgba(91, 168, 255, 0.16);
+  --secondary: #a78bfa;
+  --tertiary: #2dd4a0;
+  --danger: #f47474;
+  --warning: #fbbf24;
+  --ok: #34d399;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 20px 42px rgba(0, 0, 0, 0.5);
 
-  --wf-bg: #f2f6fc;
-  --wf-bg-layer-a: rgba(38, 111, 217, 0.18);
-  --wf-bg-layer-b: rgba(35, 170, 147, 0.13);
-  --wf-text: #10223a;
-  --wf-text-soft: #4c5f7a;
-  --wf-border: rgba(81, 117, 167, 0.22);
-  --wf-border-strong: rgba(74, 116, 177, 0.42);
-  --wf-panel-top: #ffffff;
-  --wf-panel-bottom: #f3f8ff;
-  --wf-panel-shadow: 0 18px 38px rgba(14, 32, 58, 0.12);
-  --wf-soft-shadow: 0 10px 22px rgba(20, 41, 72, 0.1);
-  --wf-primary: #1c62d4;
-  --wf-primary-deep: #1d4ea5;
-  --wf-accent: #158a78;
-  --wf-danger: #b32033;
+  --wf-bg: #12151c;
+  --wf-bg-layer-a: rgba(91, 168, 255, 0.07);
+  --wf-bg-layer-b: rgba(45, 212, 160, 0.05);
+  --wf-text: #dde6f5;
+  --wf-text-soft: #9aaccc;
+  --wf-border: rgba(255, 255, 255, 0.08);
+  --wf-border-strong: rgba(255, 255, 255, 0.14);
+  --wf-panel-top: #23272f;
+  --wf-panel-bottom: #1c2028;
+  --wf-panel-shadow: 0 18px 38px rgba(0, 0, 0, 0.5);
+  --wf-soft-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+  --wf-primary: #5ba8ff;
+  --wf-primary-deep: #3a7fd4;
+  --wf-accent: #2dd4a0;
+  --wf-danger: #f47474;
 }
 
 * {
@@ -44,6 +44,12 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100%;
+}
+
+body {
+  font-family: "Inter", "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
 }
 
 .material-symbols-outlined {
@@ -64,7 +70,7 @@ label {
   display: grid;
   gap: 4px;
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   min-width: 116px;
@@ -72,23 +78,25 @@ label {
 
 select,
 button,
-input[type="search"] {
-  border: 1px solid var(--border);
+input[type="search"],
+input[type="text"] {
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
-  background: #fff;
+  background: var(--bg-elevated);
   color: var(--text);
   font: inherit;
 }
 
 select,
-input[type="search"] {
-  font-size: 0.82rem;
+input[type="search"],
+input[type="text"] {
+  font-size: 0.92rem;
   padding: 7px 9px;
 }
 
 button {
   padding: 8px 12px;
-  font-size: 0.79rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
@@ -96,8 +104,8 @@ button {
 
 button:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: #9cb6df;
-  box-shadow: 0 8px 22px rgba(44, 88, 162, 0.14);
+  border-color: rgba(91, 168, 255, 0.4);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
 }
 
 button:active:not(:disabled) {
@@ -105,20 +113,20 @@ button:active:not(:disabled) {
 }
 
 button:disabled {
-  opacity: 0.48;
+  opacity: 0.36;
   cursor: not-allowed;
 }
 
 button.ghost {
-  background: rgba(15, 109, 243, 0.08);
-  border-color: rgba(15, 109, 243, 0.2);
-  color: #1f4d93;
+  background: rgba(91, 168, 255, 0.08);
+  border-color: rgba(91, 168, 255, 0.22);
+  color: #93c5fd;
 }
 
 #interfaceMetaText {
   font-family: "JetBrains Mono", monospace;
   font-size: 0.61rem;
-  color: #2f4d72;
+  color: var(--muted);
 }
 
 #interfaceGuideText {
@@ -128,24 +136,24 @@ button.ghost {
 .ai-chat-msg-body,
 .ai-chat-msg-body p {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   line-height: 1.42;
-  color: #2a4265;
+  color: #b8cce4;
   overflow-wrap: anywhere;
 }
 
 .ai-chat-meta {
-  font-size: 0.64rem;
-  color: #4c6488;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 .ai-chat-empty {
   border: 1px dashed var(--border);
   border-radius: 10px;
   padding: 10px;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--muted);
-  background: #ffffff;
+  background: var(--bg-elevated);
 }
 
 .ai-chat-widget.is-dragging .ai-chat-head {
@@ -158,15 +166,15 @@ button.ghost {
 }
 
 .status-running {
-  color: #0c7751;
-  border-color: rgba(12, 119, 81, 0.35);
-  background: rgba(12, 119, 81, 0.1);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.36);
+  background: rgba(52, 211, 153, 0.1);
 }
 
 .status-error {
-  color: #9a1c1c;
-  border-color: rgba(154, 28, 28, 0.34);
-  background: rgba(154, 28, 28, 0.1);
+  color: var(--danger);
+  border-color: rgba(244, 116, 116, 0.36);
+  background: rgba(244, 116, 116, 0.1);
 }
 
 .panel.is-collapsed .panel-body {
@@ -182,17 +190,17 @@ button.ghost {
   margin-left: 4px;
   border-radius: 50%;
   border: 1px solid var(--border-strong);
-  color: #4e668f;
-  font-size: 0.62rem;
+  color: var(--muted);
+  font-size: 0.7rem;
   cursor: help;
-  background: rgba(15, 109, 243, 0.08);
+  background: rgba(91, 168, 255, 0.08);
 }
 
 .subpanel-title {
   margin: 0;
   font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 0.82rem;
-  letter-spacing: 0.02em;
+  font-size: 0.88rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #3d4d6d;
+  color: var(--muted);
 }

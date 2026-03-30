@@ -1,5 +1,6 @@
 import { handshakeView, state } from "./domState.js";
 import { detectTlsStage, escapeHtml, isLikelyDataPacket, isTlsPort, parseTcpFlags } from "./helpers.js";
+import { t } from "./i18n.js";
 
 let onPacketSelect = async () => {};
 let findPacketById = () => null;
@@ -14,21 +15,21 @@ export function renderHandshakeDecoder() {
 
   if (!state.selectedConversationKey) {
     handshakeView.innerHTML =
-      '<div class="handshake-empty">Clique d\'abord un item dans "Flow Map Interactive": cela sélectionne un flux précis et aligne ce décodeur sur ce flux.</div>';
+      `<div class="handshake-empty">${escapeHtml(t("handshake.empty.selectFlow"))}</div>`;
     return;
   }
 
   const convo = state.conversations.get(state.selectedConversationKey);
   if (!convo) {
-    handshakeView.innerHTML = '<div class="handshake-empty">Conversation introuvable.</div>';
+    handshakeView.innerHTML = `<div class="handshake-empty">${escapeHtml(t("handshake.empty.notFound"))}</div>`;
     return;
   }
 
   const steps = [
     {
       id: "tcp_syn",
-      title: "1) SYN",
-      description: "Le client demande l'ouverture d'une connexion",
+      title: t("handshake.step.syn.title"),
+      description: t("handshake.step.syn.desc"),
       done: convo.stages.tcpSyn,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -38,8 +39,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tcp_syn_ack",
-      title: "2) SYN-ACK",
-      description: "Le serveur répond qu'il est prêt",
+      title: t("handshake.step.synack.title"),
+      description: t("handshake.step.synack.desc"),
       done: convo.stages.tcpSynAck,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -49,8 +50,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tcp_ack",
-      title: "3) ACK",
-      description: "Le client confirme, la connexion TCP est établie",
+      title: t("handshake.step.ack.title"),
+      description: t("handshake.step.ack.desc"),
       done: convo.stages.tcpAck,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -60,8 +61,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tls_client_hello",
-      title: "4) ClientHello",
-      description: "Début du chiffrement TLS (si HTTPS)",
+      title: t("handshake.step.ch.title"),
+      description: t("handshake.step.ch.desc"),
       done: convo.stages.tlsClientHello,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -74,8 +75,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "tls_server_hello",
-      title: "5) ServerHello",
-      description: "Le serveur choisit les paramètres de chiffrement",
+      title: t("handshake.step.sh.title"),
+      description: t("handshake.step.sh.desc"),
       done: convo.stages.tlsServerHello,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -88,8 +89,8 @@ export function renderHandshakeDecoder() {
     },
     {
       id: "data",
-      title: "6) Data",
-      description: "Les données applicatives circulent",
+      title: t("handshake.step.data.title"),
+      description: t("handshake.step.data.desc"),
       done: convo.stages.data,
       packetId: convo.packetIds.find((id) => {
         const packet = findPacketById(id);
@@ -103,25 +104,25 @@ export function renderHandshakeDecoder() {
   const flowLabel = `${convo.source}:${convo.sourcePort ?? "?"} -> ${convo.destination}:${convo.destinationPort ?? "?"}`;
   const interpretation =
     progress >= 80
-      ? "Session majoritairement complète."
+      ? t("handshake.interpretation.complete")
       : progress >= 45
-        ? "Session en cours de construction."
-        : "Début de session ou flux partiel.";
+        ? t("handshake.interpretation.progress")
+        : t("handshake.interpretation.partial");
 
   const guide = document.createElement("div");
   guide.className = "handshake-guide";
   guide.innerHTML = `
-    <strong>Flux actif: ${escapeHtml(flowLabel)}</strong>
-    <p>Étapes 1 à 3: ouverture TCP. Étapes 4 à 5: négociation TLS (si HTTPS). Étape 6: transfert de données.</p>
+    <strong>${escapeHtml(t("handshake.guide.activeFlow", { flow: flowLabel }))}</strong>
+    <p>${escapeHtml(t("handshake.guide.steps"))}</p>
     <p>${escapeHtml(interpretation)}</p>
-    <p>Clique une étape détectée pour ouvrir directement le paquet correspondant dans le tableau.</p>
+    <p>${escapeHtml(t("handshake.guide.click"))}</p>
   `;
   handshakeView.appendChild(guide);
 
   const progressWrap = document.createElement("div");
   progressWrap.className = "handshake-progress";
   progressWrap.innerHTML = `
-    <span>${escapeHtml(convo.protocol)} • progression ${progress}%</span>
+    <span>${escapeHtml(t("handshake.progress", { protocol: convo.protocol, progress }))}</span>
     <div class="handshake-progress-track">
       <div class="handshake-progress-fill" style="width:${progress}%"></div>
     </div>
@@ -150,11 +151,11 @@ export function renderHandshakeDecoder() {
 
     const meta = document.createElement("small");
     if (step.packetId) {
-      meta.textContent = `Vu sur paquet #${step.packetId}`;
+      meta.textContent = t("handshake.meta.seen", { id: step.packetId });
     } else if (step.optional) {
-      meta.textContent = "Optionnel pour ce flux";
+      meta.textContent = t("handshake.meta.optional");
     } else {
-      meta.textContent = "Pas encore observé";
+      meta.textContent = t("handshake.meta.pending");
     }
 
     block.appendChild(title);

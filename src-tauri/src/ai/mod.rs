@@ -81,8 +81,8 @@ pub async fn explain_packet(
         .unwrap_or(384);
 
     let rag_context = build_rag_context(&packet);
-    let primary_prompt = build_prompt(&packet, rag_context.as_ref());
-    let compact_prompt = build_compact_prompt(&packet, rag_context.as_ref());
+    let primary_prompt = build_prompt(&packet, rag_context.as_ref(), "fr");
+    let compact_prompt = build_compact_prompt(&packet, rag_context.as_ref(), "fr");
     let retry_predict = num_predict.max(256);
     let length_retry_predict = num_predict.saturating_mul(3).clamp(384, 1200);
     let mut notes: Vec<String> = Vec::new();
@@ -196,6 +196,7 @@ pub async fn ask_ai_question(
     question: String,
     requested_model: Option<String>,
     packet: Option<PacketRecord>,
+    lang: Option<String>,
 ) -> Result<String, String> {
     let trimmed_question = question.trim();
     if trimmed_question.is_empty() {
@@ -245,7 +246,8 @@ pub async fn ask_ai_question(
         .max(384);
 
     let rag_context = packet.as_ref().and_then(build_rag_context);
-    let prompt = build_chat_prompt(trimmed_question, packet.as_ref(), rag_context.as_ref());
+    let lang_str = lang.as_deref().unwrap_or("fr");
+    let prompt = build_chat_prompt(trimmed_question, packet.as_ref(), rag_context.as_ref(), lang_str);
 
     match client::generate_ollama_chat(&client, &endpoint, &selected_model, prompt, num_predict).await
     {
@@ -283,6 +285,7 @@ pub async fn explain_packet_stream(
     packet: PacketRecord,
     requested_model: Option<String>,
     request_id: String,
+    lang: Option<String>,
 ) -> Result<(), String> {
     let base_url = std::env::var("WIREFLUX_OLLAMA_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
@@ -334,7 +337,8 @@ pub async fn explain_packet_stream(
         .max(384);
 
     let rag_context = build_rag_context(&packet);
-    let primary_prompt = build_prompt(&packet, rag_context.as_ref());
+    let lang_str = lang.as_deref().unwrap_or("fr");
+    let primary_prompt = build_prompt(&packet, rag_context.as_ref(), lang_str);
     let app_for_chunks = app.clone();
     let request_for_chunks = request_id.clone();
 

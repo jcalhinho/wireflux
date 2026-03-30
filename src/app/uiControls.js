@@ -18,6 +18,7 @@ import {
   toggleSidenavBtn,
 } from "./domState.js";
 import { getFilteredPackets } from "./helpers.js";
+import { t } from "./i18n.js";
 
 let onLivePanelExpanded = () => {};
 let onLayerChange = () => {};
@@ -118,8 +119,8 @@ export function bindRulesEvents() {
 }
 
 function updatePanelToggleLabel(button, expanded) {
-  const collapseLabel = button.dataset.labelCollapse || "Réduire";
-  const expandLabel = button.dataset.labelExpand || "Déplier";
+  const collapseLabel = t("btn.collapse");
+  const expandLabel = t("btn.expand");
   button.textContent = expanded ? collapseLabel : expandLabel;
   button.setAttribute("aria-expanded", String(expanded));
 }
@@ -165,7 +166,7 @@ function applySidenavCollapsed(collapsed) {
 
   const label = toggleSidenavBtn.querySelector(".wf-sidenav-toggle-label");
   if (label) {
-    label.textContent = state.isSidenavCollapsed ? "Ouvrir menu" : "Réduire menu";
+    label.textContent = state.isSidenavCollapsed ? t("sidenav.open") : t("sidenav.collapse");
   }
 }
 
@@ -209,6 +210,28 @@ function updateLayerButtons() {
   for (const button of layerAllButtons) {
     button.classList.toggle("is-active", state.allLayersActive);
     button.setAttribute("aria-pressed", String(state.allLayersActive));
+  }
+}
+
+export function bindAnalysisTabs() {
+  const tabButtons = Array.from(document.querySelectorAll(".wf-tab-btn[data-tab]"));
+  const tabPanels = Array.from(document.querySelectorAll(".wf-tab-panel[data-tab-panel]"));
+
+  function activateTab(tabName) {
+    for (const btn of tabButtons) {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+    }
+    for (const panel of tabPanels) {
+      panel.classList.toggle("is-active", panel.dataset.tabPanel === tabName);
+    }
+  }
+
+  for (const btn of tabButtons) {
+    btn.addEventListener("click", () => {
+      activateTab(btn.dataset.tab);
+    });
   }
 }
 
@@ -274,9 +297,9 @@ export function bindLayerNavigation() {
       void (async () => {
         try {
           const path = await invoke("export_pcap");
-          flashMessage(`PCAP exporté: ${path}`);
+          flashMessage(t("export.pcap.ok", { path }));
         } catch (error) {
-          flashMessage(`Export PCAP impossible: ${String(error)}`);
+          flashMessage(t("export.pcap.error", { error: String(error) }));
         }
       })();
     });
@@ -288,9 +311,9 @@ export function bindLayerNavigation() {
         try {
           const packets = getFilteredPackets();
           const path = await invoke("export_packets", { packets, format: "csv" });
-          flashMessage(`CSV exporté: ${path}`);
+          flashMessage(t("export.csv.ok", { path }));
         } catch (error) {
-          flashMessage(`Export CSV impossible: ${String(error)}`);
+          flashMessage(t("export.csv.error", { error: String(error) }));
         }
       })();
     });
@@ -302,9 +325,9 @@ export function bindLayerNavigation() {
         try {
           const packets = getFilteredPackets();
           const path = await invoke("export_packets", { packets, format: "json" });
-          flashMessage(`JSON exporté: ${path}`);
+          flashMessage(t("export.json.ok", { path }));
         } catch (error) {
-          flashMessage(`Export JSON impossible: ${String(error)}`);
+          flashMessage(t("export.json.error", { error: String(error) }));
         }
       })();
     });

@@ -62,9 +62,10 @@ async fn explain_packet_stream(
     packet: PacketRecord,
     model: Option<String>,
     request_id: String,
+    lang: Option<String>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    ai::explain_packet_stream(app, packet, model, request_id).await
+    ai::explain_packet_stream(app, packet, model, request_id, lang).await
 }
 
 #[tauri::command]
@@ -77,8 +78,9 @@ async fn ask_ai_question(
     question: String,
     model: Option<String>,
     packet: Option<PacketRecord>,
+    lang: Option<String>,
 ) -> Result<String, String> {
-    ai::ask_ai_question(question, model, packet).await
+    ai::ask_ai_question(question, model, packet, lang).await
 }
 
 #[tauri::command]

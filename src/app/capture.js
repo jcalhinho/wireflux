@@ -24,26 +24,28 @@ import {
   updateAiChatStream,
 } from "./floatingAiChat.js";
 import { renderHandshakeDecoder } from "./handshakeView.js";
-import { ensureConversation, processStoryEvent, renderFlowMap, renderStoryList } from "./storyFlow.js";
+import { t } from "./i18n.js";
+import { ensureConversation } from "./storyFlow.js";
 import { findPacketById, renderPageControls, renderTablePage } from "./tableView.js";
 
-function inferInterfaceKind(name) {
-  const normalized = String(name || "").toLowerCase();
+function inferInterfaceKindKey(name, description = "", kind = "") {
+  const normalized = `${String(name || "").toLowerCase()} ${String(description || "").toLowerCase()} ${String(kind || "").toLowerCase()}`;
   if (!normalized) {
-    return "Interface réseau";
+    return "default";
   }
-  if (normalized === "lo" || normalized.startsWith("lo")) {
-    return "Boucle locale (loopback)";
+  if (normalized.includes("loopback") || normalized.startsWith("lo")) {
+    return "loopback";
   }
   if (
     normalized.includes("wifi") ||
+    normalized.includes("wi-fi") ||
     normalized.includes("wlan") ||
     normalized.includes("airport")
   ) {
-    return "Interface Wi-Fi";
+    return "wifi";
   }
   if (normalized.startsWith("eth") || normalized.startsWith("en")) {
-    return "Interface Ethernet";
+    return "ethernet";
   }
   if (
     normalized.includes("vpn") ||
@@ -51,12 +53,29 @@ function inferInterfaceKind(name) {
     normalized.includes("tun") ||
     normalized.includes("tap")
   ) {
-    return "Tunnel / VPN";
+    return "vpn";
   }
   if (normalized.includes("docker") || normalized.includes("vmnet") || normalized.includes("bridge")) {
-    return "Interface virtuelle / bridge";
+    return "virtual";
   }
-  return "Interface réseau";
+  return "default";
+}
+
+function interfaceKindLabel(kindKey) {
+  switch (kindKey) {
+    case "loopback":
+      return t("interface.kind.loopback");
+    case "wifi":
+      return t("interface.kind.wifi");
+    case "ethernet":
+      return t("interface.kind.ethernet");
+    case "vpn":
+      return t("interface.kind.vpn");
+    case "virtual":
+      return t("interface.kind.virtual");
+    default:
+      return t("interface.kind.default");
+  }
 }
 
 function normalizeInterfaceDetails(payload) {
@@ -75,9 +94,9 @@ function normalizeInterfaceDetails(payload) {
       normalized.push({
         name,
         displayName: name,
-        kind: inferInterfaceKind(name),
+        kindKey: inferInterfaceKindKey(name),
         description: "",
-        osiHint: "Point d'entree couche 1 (materiel), puis couche 2 (trames).",
+        osiHint: "",
         macAddress: "",
       });
       continue;
@@ -88,17 +107,17 @@ function normalizeInterfaceDetails(payload) {
       continue;
     }
     const description = String(item.description || "").trim();
-    const kind = String(item.kind || "").trim() || inferInterfaceKind(name);
+    const kind = String(item.kind || "").trim();
+    const kindKey = inferInterfaceKindKey(name, description, kind);
     const displayName = String(item.display_name || "").trim() || (description ? `${name} — ${description}` : name);
-    const osiHint =
-      String(item.osi_hint || "").trim() ||
-      `${kind}: point d'entree couche 1 (materiel) puis couche 2 (trame Ethernet/Wi-Fi).`;
+    const osiHint = String(item.osi_hint || "").trim() || "";
     const macAddress = String(item.mac_address || "").trim();
 
     normalized.push({
       name,
       displayName,
       kind,
+      kindKey,
       description,
       osiHint,
       macAddress,
@@ -115,24 +134,24 @@ export function updateInterfaceEducation() {
 
   const selected = String(interfaceSelect.value || "").trim();
   if (!selected) {
-    interfaceGuideText.textContent =
-      "Choisis l'interface materielle a ecouter: c'est le point de depart couche 1, avant toute analyse L2/L3/L4/L7.";
-    interfaceMetaText.textContent = "Aucune interface selectionnee.";
+    interfaceGuideText.textContent = t("interface.guide.default");
+    interfaceMetaText.textContent = t("interface.none.selected");
     return;
   }
 
   const details = state.interfaceDetails.get(selected);
   if (!details) {
-    const inferredKind = inferInterfaceKind(selected);
-    interfaceGuideText.textContent = `${inferredKind}: la capture part de la couche 1 puis remonte la pile protocolaire.`;
-    interfaceMetaText.textContent = `Interface: ${selected} | Type: ${inferredKind}`;
+    const inferredKind = interfaceKindLabel(inferInterfaceKindKey(selected));
+    interfaceGuideText.textContent = t("interface.guide.stack", { kind: inferredKind });
+    interfaceMetaText.textContent = t("interface.meta.fallback", { name: selected, kind: inferredKind });
     return;
   }
 
-  interfaceGuideText.textContent = details.osiHint;
-  const descriptionText = details.description ? ` | Detail: ${details.description}` : "";
+  const kindLabel = interfaceKindLabel(details.kindKey || inferInterfaceKindKey(details.name, details.description, details.kind));
+  interfaceGuideText.textContent = t("interface.guide.stack", { kind: kindLabel });
+  const descriptionText = details.description ? ` | ${t("interface.meta.detail")}: ${details.description}` : "";
   const macText = details.macAddress ? ` | MAC: ${details.macAddress}` : "";
-  interfaceMetaText.textContent = `Interface: ${details.name} | Type: ${details.kind}${descriptionText}${macText}`;
+  interfaceMetaText.textContent = t("interface.meta.fallback", { name: details.name, kind: kindLabel }) + descriptionText + macText;
 }
 
 function setModelOptions(models, selectedFromStatus, requiresSelection) {
@@ -142,7 +161,7 @@ function setModelOptions(models, selectedFromStatus, requiresSelection) {
   if (!Array.isArray(models) || models.length === 0) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "Aucun modèle";
+    option.textContent = t("model.none");
     modelSelect.appendChild(option);
     modelSelect.disabled = true;
     return;
@@ -151,7 +170,7 @@ function setModelOptions(models, selectedFromStatus, requiresSelection) {
   if (requiresSelection) {
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = "Choisir un modèle";
+    placeholder.textContent = t("model.choose");
     modelSelect.appendChild(placeholder);
     modelSelect.value = "";
   }
@@ -178,7 +197,7 @@ export async function refreshAiStatus() {
   try {
     const status = await invoke("ai_status");
     if (!status || typeof status !== "object") {
-      setAiStatus("statut IA invalide", true);
+      setAiStatus(t("status.ai.invalid"), true);
       setModelOptions([], null, false);
       return;
     }
@@ -192,29 +211,28 @@ export async function refreshAiStatus() {
     setModelOptions(models, selectedFromStatus, requiresSelection);
 
     if (stateValue === "ready") {
-      setAiStatus(message || "connectée");
+      setAiStatus(message || t("status.ai.connected.model", { model: state.selectedModel || "auto" }));
       return;
     }
     if (stateValue === "needs_selection") {
-      setAiStatus(message || "sélection de modèle requise", true);
+      setAiStatus(message || t("status.model.required"), true);
       return;
     }
 
-    setAiStatus(message || "IA indisponible", true);
+    setAiStatus(message || t("status.ai.unavailable"), true);
   } catch (error) {
-    setAiStatus(`erreur check IA: ${String(error)}`, true);
+    setAiStatus(t("status.ai.check.error", { error: String(error) }), true);
     setModelOptions([], null, false);
   }
 }
 
 function resetSessionViews() {
   state.packets = [];
+  state.packetMap = new Map();
   state.droppedPackets = 0;
   state.currentPage = 1;
   state.selectedPacketId = null;
   state.selectedConversationKey = null;
-  state.storyEvents = [];
-  state.storySeen = new Set();
   state.conversations = new Map();
   state.aiCache = new Map();
   state.aiErrorCache = new Map();
@@ -223,11 +241,12 @@ function resetSessionViews() {
 
   renderTablePage();
   renderExplanationEmpty();
-  renderStoryList();
-  renderFlowMap();
   renderHandshakeDecoder();
   resetFloatingAiChat();
 }
+
+let lastSecondaryRenderAt = 0;
+const SECONDARY_RENDER_INTERVAL_MS = 300;
 
 function appendPackets(batch) {
   let batchBytes = 0;
@@ -235,15 +254,18 @@ function appendPackets(batch) {
 
   for (const packet of batch) {
     state.packets.push(packet);
+    state.packetMap.set(packet.id, packet);
     batchBytes += packet.length ?? 0;
 
-    const convo = ensureConversation(packet);
-    processStoryEvent(packet, convo);
+    ensureConversation(packet);
     analyzePacketForAlerts(packet);
   }
 
   if (state.packets.length > MAX_STORED_PACKETS) {
     const overflow = state.packets.length - MAX_STORED_PACKETS;
+    for (let i = 0; i < overflow; i++) {
+      state.packetMap.delete(state.packets[i].id);
+    }
     state.packets = state.packets.slice(overflow);
     state.droppedPackets += overflow;
   }
@@ -259,9 +281,11 @@ function appendPackets(batch) {
     renderPageControls();
   }
 
-  renderFlowMap();
-  renderStoryList();
-  renderHandshakeDecoder();
+  const now = Date.now();
+  if (now - lastSecondaryRenderAt >= SECONDARY_RENDER_INTERVAL_MS) {
+    lastSecondaryRenderAt = now;
+    renderHandshakeDecoder();
+  }
 }
 
 export async function loadInterfaces() {
@@ -292,9 +316,9 @@ export async function loadInterfaces() {
     }
 
     if (interfaces.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Aucune interface";
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = t("interface.none");
       interfaceSelect.appendChild(option);
     }
 
@@ -312,17 +336,15 @@ export async function selectPacket(packet) {
   state.aiStreamBuffer = "";
 
   renderTablePage();
-  renderFlowMap();
-  renderStoryList();
   renderHandshakeDecoder();
   renderExplanation(packet);
   openFloatingAiChat();
 
   if (!state.selectedModel) {
-    setAiStatus("sélection de modèle requise", true);
-    showAiChatError(packet, "Sélectionne un modèle IA dans le header pour lancer l'analyse.", state.selectedModel);
+    setAiStatus(t("status.model.required"), true);
+    showAiChatError(packet, t("status.model.required"), state.selectedModel);
     renderExplanation(packet, "", {
-      aiError: "Sélectionne un modèle IA dans la barre du haut. La lecture locale reste disponible.",
+      aiError: t("status.model.required"),
     });
     return;
   }
@@ -344,20 +366,21 @@ export async function selectPacket(packet) {
   state.aiStreamRequestId = requestId;
   state.aiStreamBuffer = "";
   showAiChatLoading(packet, state.selectedModel);
-  setAiStatus(`stream IA en cours (${state.selectedModel})`);
+  setAiStatus(t("status.ai.stream", { model: state.selectedModel }));
 
   try {
     await invoke("explain_packet_stream", {
       packet,
       model: state.selectedModel,
       requestId,
+      lang: state.lang ?? "fr",
     });
   } catch (error) {
     state.aiErrorCache.set(cacheKey, String(error));
     if (state.selectedPacketId === packet.id) {
       showAiChatError(packet, String(error), state.selectedModel);
     }
-    setAiStatus("erreur backend IA", true);
+    setAiStatus(t("status.ai.backend.error"), true);
     await refreshAiStatus();
   }
 }
@@ -365,14 +388,14 @@ export async function selectPacket(packet) {
 export async function startCapture() {
   const iface = interfaceSelect.value;
   if (!iface) {
-    setStatus("error", "interface requise");
+    setStatus("error", t("status.interface.required"));
     return;
   }
 
   resetSessionViews();
   resetTrafficState();
   resetAlertState();
-  setAiStatus("vérification...");
+  setAiStatus(t("status.connecting"));
 
   try {
     await ensureChartsLoaded();
@@ -384,14 +407,18 @@ export async function startCapture() {
   } catch (error) {
     const message = String(error || "");
     const normalized = message.toLowerCase();
-    if (normalized.includes("déjà en cours") || normalized.includes("deja en cours")) {
+    if (
+      normalized.includes("déjà en cours") ||
+      normalized.includes("deja en cours") ||
+      normalized.includes("already running")
+    ) {
       try {
         await invoke("stop_capture");
         await invoke("start_capture", { interface: iface });
         state.isCaptureRunning = true;
         setCaptureButtons(true);
         startGraphTicker();
-        setStatus("running", "Capture resynchronisée");
+        setStatus("running", t("status.capture.resynced"));
         await refreshAiStatus();
         return;
       } catch (restartError) {
@@ -420,7 +447,14 @@ export async function stopCapture() {
 }
 
 export async function handleCaptureStatus(payload) {
-  setStatus(payload.state, payload.message);
+  if (payload.state === "running") {
+    const currentInterface = interfaceSelect?.value || "?";
+    setStatus(payload.state, t("status.capture.running", { interface: currentInterface }));
+  } else if (payload.state === "idle" || payload.state === "stopping") {
+    setStatus(payload.state, "");
+  } else {
+    setStatus(payload.state, payload.message);
+  }
 
   if (payload.state === "running") {
     state.isCaptureRunning = true;
@@ -507,7 +541,7 @@ export function handleAiStreamDone(payload) {
   state.aiStreamBuffer = "";
 
   showAiChatResult(packet, aiText, state.selectedModel);
-  setAiStatus(`connectée (${state.selectedModel})`);
+  setAiStatus(t("status.ai.connected.model", { model: state.selectedModel }));
 }
 
 export async function handleAiStreamError(payload) {
@@ -519,7 +553,7 @@ export async function handleAiStreamError(payload) {
     return;
   }
 
-  const message = String(payload.message || "stream IA interrompu");
+  const message = String(payload.message || t("status.stream.interrupted"));
   state.aiStreamRequestId = null;
   state.aiStreamBuffer = "";
 
