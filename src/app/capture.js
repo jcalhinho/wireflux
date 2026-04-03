@@ -263,11 +263,20 @@ function appendPackets(batch) {
 
   if (state.packets.length > MAX_STORED_PACKETS) {
     const overflow = state.packets.length - MAX_STORED_PACKETS;
+    const droppedIds = new Set();
     for (let i = 0; i < overflow; i++) {
       state.packetMap.delete(state.packets[i].id);
+      droppedIds.add(state.packets[i].id);
     }
     state.packets = state.packets.slice(overflow);
     state.droppedPackets += overflow;
+
+    for (const [key, convo] of state.conversations) {
+      convo.packetIds = convo.packetIds.filter((id) => !droppedIds.has(id));
+      if (convo.packetIds.length === 0) {
+        state.conversations.delete(key);
+      }
+    }
   }
 
   state.currentSecondPackets += batch.length;

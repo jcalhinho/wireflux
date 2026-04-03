@@ -274,36 +274,11 @@ fn read_interface_mac(interface_name: &str) -> Option<String> {
 }
 
 fn extract_mac_from_text(text: &str) -> Option<String> {
-    for line in text.lines() {
-        let mut parts = line.split_whitespace();
-        while let Some(part) = parts.next() {
-            if part.eq_ignore_ascii_case("ether")
-                || part.eq_ignore_ascii_case("lladdr")
-                || part.eq_ignore_ascii_case("link/ether")
-            {
-                if let Some(candidate) = parts.next() {
-                    let cleaned = candidate
-                        .trim_matches(|ch: char| ch == ',' || ch == ';')
-                        .to_ascii_lowercase();
-                    if is_mac_address(&cleaned) {
-                        return Some(cleaned);
-                    }
-                }
-            }
-        }
+    let mac_re = regex::Regex::new(r"(?i)(?:ether|lladdr|link/ether)\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})").ok()?;
+    if let Some(caps) = mac_re.captures(text) {
+        return Some(caps[1].to_ascii_lowercase());
     }
     None
-}
-
-fn is_mac_address(candidate: &str) -> bool {
-    let mut count = 0usize;
-    for group in candidate.split(':') {
-        if group.len() != 2 || !group.chars().all(|ch| ch.is_ascii_hexdigit()) {
-            return false;
-        }
-        count += 1;
-    }
-    count == 6
 }
 
 fn run_capture_loop(

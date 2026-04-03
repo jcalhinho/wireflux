@@ -144,13 +144,22 @@ function getSelectedPacket() {
   return state.packets.find((packet) => packet.id === state.selectedPacketId) || null;
 }
 
+function sanitizeInput(raw) {
+  return raw
+    .replace(/<[^>]*>/g, "")
+    .replace(/[^\p{L}\p{N}\p{P}\p{Z}\p{S}]/gu, "")
+    .slice(0, 900)
+    .trim();
+}
+
 async function submitQuestion() {
   if (!hasDom() || pendingAsk) {
     return;
   }
 
-  const question = String(aiChatInput.value || "").trim();
+  const question = sanitizeInput(String(aiChatInput.value || ""));
   if (!question) {
+    aiChatInput.value = "";
     aiChatInput.focus({ preventScroll: true });
     return;
   }
